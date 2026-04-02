@@ -136,7 +136,7 @@ Deploys both contracts (`NoriTokenBridge` and `FungibleToken`) to the Mina netwo
 ```bash
 git checkout <tag>
 npm ci && npm run build
-npm run build-deploy-tx -- <tag> <admin-group-pub-key> <token-group-pub-key>
+npm run build-deploy-tx -- <tag>
 ```
 
 **What happens, step by step:**
@@ -157,7 +157,7 @@ Migrates the on-chain verification key from one contract version to another. The
 ```bash
 git checkout <from-tag>
 npm ci && npm run build
-npm run build-update-vk-tx -- <from-tag> <to-tag> <admin-group-pub-key>
+npm run build-update-vk-tx -- <from-tag> <to-tag>
 ```
 
 **What happens, step by step:**

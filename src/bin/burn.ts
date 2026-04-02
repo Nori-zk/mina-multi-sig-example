@@ -17,7 +17,7 @@ import { FungibleToken } from '../TokenBase.mock.js';
 const possibleNetworkUrl = process.env.MINA_RPC_NETWORK_URL;
 const possibleNetwork = process.env.MINA_NETWORK;
 const possibleSenderKeyBase58 = process.env.MINA_SENDER_PRIVATE_KEY;
-const possibleTokenAddressBase58 = process.env.NORI_MOCK_TOKEN_ADDRESS;
+const possibleTokenAddressBase58 = process.env.NORI_MINA_TOKEN_BASE_ADDRESS;
 const fee = Number(process.env.MINA_TX_FEE || 0.1) * 1e9;
 const possibleAmountStr = process.argv[2];
 
@@ -30,7 +30,7 @@ if (!possibleSenderKeyBase58)
   issues.push(
     'Missing required env: MINA_SENDER_PRIVATE_KEY (must be the admin private key — the sender mints to themselves and burns)'
   );
-if (!possibleTokenAddressBase58) issues.push('Missing required env: NORI_MOCK_TOKEN_ADDRESS');
+if (!possibleTokenAddressBase58) issues.push('Missing required env: NORI_MINA_TOKEN_BASE_ADDRESS');
 if (!possibleAmountStr)
   issues.push(
     'Missing required first argument: amount (in token base units, e.g. 1000000 for 1 nETH at 6 decimals)'
@@ -51,7 +51,7 @@ if (possibleTokenAddressBase58) {
     possibleTokenAddress = PublicKey.fromBase58(possibleTokenAddressBase58);
   } catch (e) {
     issues.push(
-      `NORI_MOCK_TOKEN_ADDRESS '${possibleTokenAddressBase58}' is not a valid public key: ${(e as Error).message}`
+      `NORI_MINA_TOKEN_BASE_ADDRESS '${possibleTokenAddressBase58}' is not a valid public key: ${(e as Error).message}`
     );
   }
 }

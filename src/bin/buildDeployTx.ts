@@ -28,8 +28,8 @@ new LogPrinter('NoriTokenBridge');
 // --- Collect and validate inputs ---
 
 const possibleTag = process.argv[2];
-const possibleAdminGroupPubKey58 = process.argv[3];
-const possibleTokenGroupPubKey58 = process.argv[4];
+const possibleAdminGroupPubKey58 = process.env.NORI_MINA_TOKEN_BRIDGE_ADDRESS;
+const possibleTokenGroupPubKey58 = process.env.NORI_MINA_TOKEN_BASE_ADDRESS;
 const possibleNetworkUrl = process.env.MINA_RPC_NETWORK_URL;
 const possibleNetwork = process.env.MINA_NETWORK;
 const possibleSenderKey58 = process.env.MINA_SENDER_PRIVATE_KEY;
@@ -39,8 +39,8 @@ const fee = Number(process.env.MINA_TX_FEE || 0.1) * 1e9;
 
 const issues: string[] = [];
 if (!possibleTag) issues.push('Missing required first argument: <tag>');
-if (!possibleAdminGroupPubKey58) issues.push('Missing required second argument: <admin-group-pub-key>');
-if (!possibleTokenGroupPubKey58) issues.push('Missing required third argument: <token-group-pub-key>');
+if (!possibleAdminGroupPubKey58) issues.push('Missing required env: NORI_MINA_TOKEN_BRIDGE_ADDRESS — the admin contract address (from DKG)');
+if (!possibleTokenGroupPubKey58) issues.push('Missing required env: NORI_MINA_TOKEN_BASE_ADDRESS — the token contract address (from DKG)');
 if (!possibleNetworkUrl) issues.push('Missing required env: MINA_RPC_NETWORK_URL');
 if (!possibleNetwork) issues.push('Missing required env: MINA_NETWORK');
 if (!possibleSenderKey58) issues.push('Missing required env: MINA_SENDER_PRIVATE_KEY');
@@ -55,12 +55,12 @@ if (possibleSenderKey58) {
 let possibleAdminGroupPubKey: PublicKey | undefined;
 if (possibleAdminGroupPubKey58) {
     try { possibleAdminGroupPubKey = PublicKey.fromBase58(possibleAdminGroupPubKey58); }
-    catch (e) { issues.push(`Admin group public key invalid: ${(e as Error).message}`); }
+    catch (e) { issues.push(`NORI_MINA_TOKEN_BRIDGE_ADDRESS invalid: ${(e as Error).message}`); }
 }
 let possibleTokenGroupPubKey: PublicKey | undefined;
 if (possibleTokenGroupPubKey58) {
     try { possibleTokenGroupPubKey = PublicKey.fromBase58(possibleTokenGroupPubKey58); }
-    catch (e) { issues.push(`Token group public key invalid: ${(e as Error).message}`); }
+    catch (e) { issues.push(`NORI_MINA_TOKEN_BASE_ADDRESS invalid: ${(e as Error).message}`); }
 }
 
 if (issues.length) {
@@ -177,7 +177,7 @@ await notifier.notify({
         { groupName: 'admin', groupPublicKey: adminGroupPubKey.toBase58() },
         { groupName: 'token', groupPublicKey: tokenGroupPubKey.toBase58() },
     ],
-    command: `npm run verify-deploy-tx -- ${tag} ${adminGroupPubKey.toBase58()} ${tokenGroupPubKey.toBase58()}`,
+    command: `npm run verify-deploy-tx -- ${tag}`,
 });
 
 // --- FROST signing: admin group ---

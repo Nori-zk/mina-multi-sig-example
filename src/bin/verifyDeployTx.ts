@@ -13,15 +13,15 @@ new LogPrinter('VerifyDeployTx');
 // --- Collect and validate inputs ---
 
 const possibleTag = process.argv[2];
-const possibleAdminGroupPubKey58 = process.argv[3];
-const possibleTokenGroupPubKey58 = process.argv[4];
+const possibleAdminGroupPubKey58 = process.env.NORI_MINA_TOKEN_BRIDGE_ADDRESS;
+const possibleTokenGroupPubKey58 = process.env.NORI_MINA_TOKEN_BASE_ADDRESS;
 const possibleFrostServerUrl = process.env.FROST_SERVER_URL;
 const possibleFrostConfigPath = process.env.FROST_CONFIG_PATH;
 
 const issues: string[] = [];
 if (!possibleTag) issues.push('Missing required first argument: <tag> — the git tag to verify');
-if (!possibleAdminGroupPubKey58) issues.push('Missing required second argument: <admin-group-pub-key> — the admin FROST group public key from DKG');
-if (!possibleTokenGroupPubKey58) issues.push('Missing required third argument: <token-group-pub-key> — the token FROST group public key from DKG');
+if (!possibleAdminGroupPubKey58) issues.push('Missing required env: NORI_MINA_TOKEN_BRIDGE_ADDRESS — the admin contract address (from DKG)');
+if (!possibleTokenGroupPubKey58) issues.push('Missing required env: NORI_MINA_TOKEN_BASE_ADDRESS — the token contract address (from DKG)');
 if (!possibleFrostServerUrl) issues.push('Missing required env: FROST_SERVER_URL — the URL of the frostd coordination server');
 if (!possibleFrostConfigPath) issues.push('Missing required env: FROST_CONFIG_PATH — the directory where your FROST config TOML is stored');
 
@@ -34,12 +34,12 @@ if (possibleAbsoluteConfigPath && !checkDirectory(possibleAbsoluteConfigPath)) {
 let possibleAdminGroupPubKey: PublicKey | undefined;
 if (possibleAdminGroupPubKey58) {
     try { possibleAdminGroupPubKey = PublicKey.fromBase58(possibleAdminGroupPubKey58); }
-    catch (e) { issues.push(`Admin group public key invalid: ${(e as Error).message}`); }
+    catch (e) { issues.push(`NORI_MINA_TOKEN_BRIDGE_ADDRESS invalid: ${(e as Error).message}`); }
 }
 let possibleTokenGroupPubKey: PublicKey | undefined;
 if (possibleTokenGroupPubKey58) {
     try { possibleTokenGroupPubKey = PublicKey.fromBase58(possibleTokenGroupPubKey58); }
-    catch (e) { issues.push(`Token group public key invalid: ${(e as Error).message}`); }
+    catch (e) { issues.push(`NORI_MINA_TOKEN_BASE_ADDRESS invalid: ${(e as Error).message}`); }
 }
 
 if (issues.length) {

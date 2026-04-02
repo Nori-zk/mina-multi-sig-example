@@ -109,7 +109,21 @@ logger.log('=== DKG Complete ===');
 if (newGroupKey) {
     logger.log(`Group public key (hex): ${newGroupKey}`);
     logger.log('');
-    logger.log('All participants should verify their group public key matches this value.');
+
+    const isAdmin = description.toLowerCase().includes('admin');
+    const envVarName = isAdmin ? 'NORI_MINA_TOKEN_BRIDGE_ADDRESS' : 'NORI_MINA_TOKEN_BASE_ADDRESS';
+    const envVarLine = `${envVarName}=${newGroupKey}`;
+
+    logger.log('Add this to your .env:');
+    logger.log(`  ${envVarLine}`);
+
+    // Notify participants with the env var they need to add
+    await notifier.notify({
+        event: 'JoinDkg',
+        description: `DKG complete for "${description}". Add to your .env: ${envVarLine}`,
+        threshold: Number(threshold),
+        command: envVarLine,
+    });
 } else {
     logger.warn('Could not detect the new group key from the config. Check the FROST config manually.');
 }

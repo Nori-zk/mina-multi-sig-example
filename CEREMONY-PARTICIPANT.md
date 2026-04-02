@@ -96,7 +96,7 @@ You do not need to figure out which command to run — the notification contains
 
 The notification will contain a command like:
 ```
-npm run verify-deploy-tx -- <tag> <admin-group-pub-key> <token-group-pub-key>
+npm run verify-deploy-tx -- <tag>
 ```
 
 Before running it, check out the tag and build:
@@ -123,7 +123,7 @@ Then run the command from the notification.
 
 The notification will contain a command like:
 ```
-npm run verify-update-vk-tx -- <from-tag> <to-tag> <admin-group-pub-key>
+npm run verify-update-vk-tx -- <from-tag> <to-tag>
 ```
 
 Before running it, check out the from-tag and build:
