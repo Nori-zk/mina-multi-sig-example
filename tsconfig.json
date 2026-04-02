@@ -1,0 +1,43 @@
+{
+  "compilerOptions": {
+    "isolatedModules": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+    "incremental": true,
+    "lib": ["DOM", "ES2022"],
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitAny": true,
+    "noImplicitReturns": true,
+    "noImplicitThis": true,
+    "noUncheckedIndexedAccess": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "strictBindCallApply": true,
+    "strictFunctionTypes": true,
+    "strictNullChecks": false,
+    "target": "es2021",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "esModuleInterop": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "useDefineForClassFields": false,
+    "strict": true,
+    "strictPropertyInitialization": false,
+    "importHelpers": true,
+    "declaration": true,
+    "noEmitOnError": false,
+    "allowJs": true,
+    "sourceMap": true,
+    "types": ["jest", "node"],
+    "outDir": "build",
+    "typeRoots": ["./node_modules/@types"],
+    "baseUrl": ".",
+    "paths": {
+      "o1js": ["./node_modules/o1js"],
+      "*": ["*", "src/*", "./node_modules/*"]
+    }
+  },
+  "exclude": ["node_modules", "build"],
+  "include": ["src/**/*.ts"]
+}

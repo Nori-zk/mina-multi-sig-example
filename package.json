@@ -1,0 +1,60 @@
+{
+  "name": "o1js-multi-sig-example-contract",
+  "version": "0.0.1",
+  "description": "Mock contract with burn and provable update vk",
+  "author": "",
+  "license": "Apache-2.0",
+  "keywords": [
+    "mina-zkapp",
+    "mina-zk-app",
+    "mina-dapp",
+    "zkapp"
+  ],
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
+    "access": "public"
+  },
+  "type": "module",
+  "main": "build/index.node.js",
+  "types": "build/index.node.d.ts",
+  "scripts": {
+    "clean": "rimraf build",
+    "build": "npm run clean && tsc",
+    "deploy": "npm run build && node --max-old-space-size=8192 --max-semi-space-size=128 --no-liftoff --no-wasm-tier-up --experimental-vm-modules --experimental-wasm-modules build/bin/deploy.js",
+    "burn": "npm run build && node --max-old-space-size=8192 --max-semi-space-size=128 --no-liftoff --no-wasm-tier-up --experimental-vm-modules --experimental-wasm-modules build/bin/burn.js",
+    "burn-with-a-furious-vengeance": "while true; do npm run burn 1 || true; sleep 5; done",
+    "bake-vk-hashes": "npm run build && node --max-old-space-size=8192 --max-old-space-size=8192 --max-semi-space-size=128 --no-liftoff --no-wasm-tier-up --experimental-vm-modules --experimental-wasm-modules build/bin/bakeVkHashes.js && npm run build",
+    "update-vk": "npm run build && node --max-old-space-size=8192 --max-semi-space-size=128 --no-liftoff --no-wasm-tier-up --experimental-vm-modules --experimental-wasm-modules build/bin/updateVk.js",
+    "migrate-vk-to-tag": "npm run build && node --max-old-space-size=8192 --max-semi-space-size=128 --no-liftoff --no-wasm-tier-up --experimental-vm-modules --experimental-wasm-modules build/bin/migrateVkToTag.js"
+  },
+  "devDependencies": {
+    "@babel/preset-env": "^7.29.0",
+    "@babel/preset-typescript": "^7.28.5",
+    "@nori-zk/ethereum-token-bridge": "*",
+    "@nori-zk/pts-types": "5.0.0",
+    "@types/jest": "^30.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.55.0",
+    "@typescript-eslint/parser": "^8.55.0",
+    "dotenv": "^17.2.4",
+    "eslint": "^9.39.2",
+    "eslint-plugin-o1js": "^0.4.0",
+    "ethers": "^6.16.0",
+    "jest": "^30.2.0",
+    "prettier": "^3.8.1",
+    "rimraf": "^6.1.2",
+    "ts-jest": "^29.4.6",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.55.0"
+  },
+  "peerDependencies": {
+    "o1js": "2.12.0"
+  },
+  "engines": {
+    "node": ">=18.14.0"
+  },
+  "dependencies": {
+    "@nori-zk/o1js-zk-utils": "^0.0.19",
+    "esm-iso-logger": "^1.0.2"
+  }
+}
