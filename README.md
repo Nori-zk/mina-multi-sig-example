@@ -22,8 +22,8 @@ The admin and token contract private keys are never held by a single party. They
 
 ## Prerequisites
 
-- Node.js >= 18.14.0 and npm >= 9
-- Docker installed and running
+- [Node.js](https://nodejs.org/) >= 18.14.0 and npm >= 9 ([installation guide](https://nodejs.org/en/download/))
+- [Docker](https://www.docker.com/) installed and running ([installation guide](https://docs.docker.com/get-docker/))
 
 ## Getting started
 

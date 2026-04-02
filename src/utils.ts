@@ -256,3 +256,9 @@ export const ensureDirectory = (p: string): string => {
   mkdirSync(abs, { recursive: true });
   return abs;
 };
+
+// Byte conversion utilities
+
+export const bytesToHex = (bytes: Uint8Array): string => Buffer.from(bytes).toString('hex');
+
+export const hexToBytes = (hex: string): Uint8Array => Buffer.from(hex, 'hex');
