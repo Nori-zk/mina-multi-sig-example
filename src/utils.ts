@@ -16,6 +16,11 @@ import {
 
 import { type Logger } from 'esm-iso-logger';
 
+import { stat, mkdir } from 'fs/promises'; 
+import { homedir } from 'os';
+import path, { resolve } from 'path';
+import { mkdirSync, statSync } from 'fs';
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type Constructor<T = unknown> = new (...args: any[]) => T;
 
@@ -231,3 +236,23 @@ export function formatDuration(ms: number): string {
   const seconds = ((ms % 60000) / 1000).toFixed(2);
   return `${minutes}m ${seconds}s`;
 }
+
+// Paths and folders
+
+const expand = (p: string) => p.replace(/^~/, homedir());
+
+export const getAbsolutePath = (p: string) => resolve(expand(p));
+
+export const checkDirectory = (p: string): string | null => {
+    try {
+        return statSync(p).isDirectory() ? p : null;
+    } catch {
+        return null;
+    }
+};
+
+export const ensureDirectory = (p: string): string => {
+  const abs = getAbsolutePath(p);
+  mkdirSync(abs, { recursive: true });
+  return abs;
+};

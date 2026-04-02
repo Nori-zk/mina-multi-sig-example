@@ -1,0 +1,100 @@
+import 'dotenv/config';
+import { existsSync } from 'fs';
+import { resolve } from 'path';
+import { Logger, LogPrinter } from 'esm-iso-logger';
+import { runFrostClient, frostGuestConfigPath } from '../frostDockerClient.js';
+import { checkDirectory, ensureDirectory, getAbsolutePath } from '../utils.js';
+import { askYesNo } from '../preflight.js';
+
+const logger = new Logger('FrostInit');
+new LogPrinter('FrostInit');
+
+const possibleName = process.argv[2];
+const possibleConfigPath = process.env.FROST_CONFIG_PATH;
+
+const issues: string[] = [];
+if (!possibleName) issues.push('Missing required first argument: <name> — your committee member name (e.g. "alice"). This identifies you to other participants during contact exchange.');
+if (!possibleConfigPath) issues.push('Missing required env: FROST_CONFIG_PATH — the directory where your FROST config TOML will be stored (e.g. ~/.config/frost)');
+
+const possibleAbsoluteConfigPath = possibleConfigPath ? getAbsolutePath(possibleConfigPath) : undefined;
+
+if (possibleAbsoluteConfigPath && !checkDirectory(possibleAbsoluteConfigPath)) {
+    logger.warn(`FROST config directory does not exist: ${possibleAbsoluteConfigPath}`);
+    if (!await askYesNo('Do you want to create this directory?')) {
+        issues.push(`Directory missing: Docker cannot mount the non-existent path: ${possibleAbsoluteConfigPath}`);
+    } else {
+        ensureDirectory(possibleAbsoluteConfigPath);
+        logger.log(`Created directory: ${possibleAbsoluteConfigPath}`);
+    }
+}
+
+if (possibleAbsoluteConfigPath) {
+    const configFilePath = resolve(possibleAbsoluteConfigPath, 'credentials.toml');
+    if (existsSync(configFilePath)) {
+        issues.push(
+            `FROST config already exists at ${configFilePath}. ` +
+            'Re-initializing would overwrite your communication keypair and key shares. ' +
+            'This could permanently destroy access to contracts managed by this key. ' +
+            'If you need to re-initialize, manually back up and remove the existing config first.'
+        );
+    }
+}
+
+if (issues.length) {
+    logger.warn('Could not continue due to the following issues:');
+    issues.forEach((issue) => logger.error(`  - ${issue}`));
+    logger.fatal('Encountered a fatal error and cannot continue.');
+    process.exit(1);
+}
+
+const name = possibleName!;
+const hostConfigPath = possibleAbsoluteConfigPath!;
+
+logger.log('Initializing FROST config...');
+let initOutput: string;
+try {
+    initOutput = runFrostClient({
+        frostConfigHostPath: hostConfigPath,
+        args: ['init', '-c', frostGuestConfigPath],
+    });
+} catch (e) {
+    logger.error(`${(e as Error).message}`);
+    logger.fatal('Encountered a fatal error and cannot continue.');
+    process.exit(1);
+}
+
+for (const line of initOutput.trim().split('\n')) {
+    if (line.trim()) logger.info(line);
+}
+
+logger.log('Exporting contact string...');
+let exportOutput: string;
+try {
+    exportOutput = runFrostClient({
+        frostConfigHostPath: hostConfigPath,
+        args: ['export', '-n', name, '-c', frostGuestConfigPath],
+    });
+} catch (e) {
+    logger.error(`${(e as Error).message}`);
+    logger.fatal('Encountered a fatal error and cannot continue.');
+    process.exit(1);
+}
+
+for (const line of exportOutput.trim().split('\n')) {
+    if (line.trim()) logger.info(line);
+}
+
+const contactStringMatch = exportOutput.match(/minafrost1[a-z0-9]+/);
+const contactString = contactStringMatch ? contactStringMatch[0] : null;
+
+logger.log('');
+logger.log('=== Next Steps ===');
+if (contactString) {
+    logger.log('Paste the following line in the Telegram group chat for other committee members:');
+    logger.log('');
+    logger.log(`npm run frost-import -- ${contactString}`);
+    logger.log('');
+    logger.log('Each committee member copies that line and runs it to import your contact.');
+} else {
+    logger.warn('Could not extract contact string from output. Check the output above and share it manually.');
+}

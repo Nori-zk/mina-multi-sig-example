@@ -20,12 +20,18 @@
   "scripts": {
     "clean": "rimraf build",
     "build": "npm run clean && tsc",
-    "deploy": "npm run build && node --max-old-space-size=8192 --max-semi-space-size=128 --no-liftoff --no-wasm-tier-up --experimental-vm-modules --experimental-wasm-modules build/bin/deploy.js",
     "burn": "npm run build && node --max-old-space-size=8192 --max-semi-space-size=128 --no-liftoff --no-wasm-tier-up --experimental-vm-modules --experimental-wasm-modules build/bin/burn.js",
     "burn-with-a-furious-vengeance": "while true; do npm run burn 1 || true; sleep 5; done",
     "bake-vk-hashes": "npm run build && node --max-old-space-size=8192 --max-old-space-size=8192 --max-semi-space-size=128 --no-liftoff --no-wasm-tier-up --experimental-vm-modules --experimental-wasm-modules build/bin/bakeVkHashes.js && npm run build",
-    "update-vk": "npm run build && node --max-old-space-size=8192 --max-semi-space-size=128 --no-liftoff --no-wasm-tier-up --experimental-vm-modules --experimental-wasm-modules build/bin/updateVk.js",
-    "migrate-vk-to-tag": "npm run build && node --max-old-space-size=8192 --max-semi-space-size=128 --no-liftoff --no-wasm-tier-up --experimental-vm-modules --experimental-wasm-modules build/bin/migrateVkToTag.js"
+    "frost-init": "npm run build && node build/bin/frostInit.js",
+    "frost-import": "npm run build && node build/bin/frostImport.js",
+    "frost-notification-config": "npm run build && node build/bin/frostNotificationConfig.js",
+    "frost-dkg-coordinate": "npm run build && node build/bin/frostDkgCoordinate.js",
+    "frost-dkg-participate": "npm run build && node build/bin/frostDkgParticipate.js",
+    "build-deploy-tx": "npm run build && node --max-old-space-size=8192 --max-semi-space-size=128 --no-liftoff --no-wasm-tier-up --experimental-vm-modules --experimental-wasm-modules build/bin/buildDeployTx.js",
+    "build-update-vk-tx": "npm run build && node --max-old-space-size=8192 --max-semi-space-size=128 --no-liftoff --no-wasm-tier-up --experimental-vm-modules --experimental-wasm-modules build/bin/buildUpdateVkTx.js",
+    "verify-deploy-tx": "npm run build && node build/bin/verifyDeployTx.js",
+    "verify-update-vk-tx": "npm run build && node build/bin/verifyUpdateVkTx.js"
   },
   "devDependencies": {
     "@babel/preset-env": "^7.29.0",
