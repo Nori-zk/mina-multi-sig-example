@@ -33,7 +33,7 @@ const hostConfigPath = possibleAbsoluteConfigPath!;
 logger.log('Importing contact...');
 let importOutput: string;
 try {
-    importOutput = runFrostClient({
+    importOutput = await runFrostClient({
         frostConfigHostPath: hostConfigPath,
         args: ['import', contactString, '-c', frostGuestConfigPath(hostConfigPath)],
     });

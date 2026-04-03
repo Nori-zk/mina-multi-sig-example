@@ -50,7 +50,7 @@ logger.log('This will block until the coordinator and all other participants hav
 
 let dkgOutput: string;
 try {
-    dkgOutput = runFrostClient({
+    dkgOutput = await runFrostClient({
         frostConfigHostPath: hostConfigPath,
         args: [
             'dkg',

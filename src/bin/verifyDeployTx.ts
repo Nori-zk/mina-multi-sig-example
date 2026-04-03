@@ -86,7 +86,7 @@ if (!await askYesNo(`Code is at '${verification.verifyDir}'. Have you reviewed t
 logger.log('Joining admin group FROST signing session...');
 logger.log('This will block until the coordinator starts the session and signing completes.');
 try {
-    runFrostClient({
+    await runFrostClient({
         frostConfigHostPath: frostConfigPath,
         args: [
             'participant',
@@ -107,7 +107,7 @@ try {
 logger.log('Joining token group FROST signing session...');
 logger.log('This will block until the coordinator starts the session and signing completes.');
 try {
-    runFrostClient({
+    await runFrostClient({
         frostConfigHostPath: frostConfigPath,
         args: [
             'participant',

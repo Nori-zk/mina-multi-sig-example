@@ -53,7 +53,7 @@ const hostConfigPath = possibleAbsoluteConfigPath!;
 logger.log('Initializing FROST config...');
 let initOutput: string;
 try {
-    initOutput = runFrostClient({
+    initOutput = await runFrostClient({
         frostConfigHostPath: hostConfigPath,
         args: ['init', '-c', frostGuestConfigPath(hostConfigPath)],
     });
@@ -70,7 +70,7 @@ for (const line of initOutput.trim().split('\n')) {
 logger.log('Exporting contact string...');
 let exportOutput: string;
 try {
-    exportOutput = runFrostClient({
+    exportOutput = await runFrostClient({
         frostConfigHostPath: hostConfigPath,
         args: ['export', '-n', name, '-c', frostGuestConfigPath(hostConfigPath)],
     });

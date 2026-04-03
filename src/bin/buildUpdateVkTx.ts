@@ -206,7 +206,7 @@ const frostNetwork = mapMinaNetworkToFrost(network);
 logger.log('Starting FROST coordinator session for admin group...');
 logger.log('Waiting for all participants to verify and join. This will block until signing completes.');
 try {
-    runFrostClient({
+    await runFrostClient({
         frostConfigHostPath: frostConfigPath,
         auditHostPath: auditDir,
         args: [

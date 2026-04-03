@@ -1,4 +1,4 @@
-import { execSync } from 'child_process';
+import { spawn } from 'child_process';
 import { basename, dirname } from 'path';
 import { Logger } from 'esm-iso-logger';
 import { getAbsolutePath } from './utils.js';
@@ -22,37 +22,60 @@ export type FrostDockerRunOptions = {
     auditHostPath?: string;
 };
 
-export function runFrostClient(options: FrostDockerRunOptions): string {
+export function runFrostClient(options: FrostDockerRunOptions): Promise<string> {
     const { frostConfigHostPath, args, auditHostPath } = options;
 
     const absoluteHostPath = getAbsolutePath(frostConfigHostPath);
     const hostDir = dirname(absoluteHostPath);
 
     const mounts = [
-        `-v "${hostDir}:${frostGuestConfigDir}"`,
+        '-v', `${hostDir}:${frostGuestConfigDir}`,
     ];
 
     if (auditHostPath) {
-        mounts.push(`-v "${auditHostPath}:${frostGuestAuditDir}"`);
+        mounts.push('-v', `${auditHostPath}:${frostGuestAuditDir}`);
     }
 
-    const quotedArgs = args.map(a => `"${a}"`);
-
-    const cmd = [
-        `docker run --rm --user ${process.getuid()}:${process.getgid()}`,
+    const dockerArgs = [
+        'run', '--rm',
+        '--user', `${process.getuid()}:${process.getgid()}`,
         ...mounts,
         frostClientImage,
-        ...quotedArgs,
-    ].join(' ');
+        ...args,
+    ];
 
-    logger.info(`Running image: ${frostClientImage}`);
-    logger.info(`Command: ${quotedArgs.join(' ')}`);
+    logger.debug(`Running image: ${frostClientImage}`);
+    logger.debug(`Command: ${args.join(' ')}`);
 
-    try {
-        return execSync(`${cmd} 2>&1`, { encoding: 'utf8' });
-    } catch (e: unknown) {
-        throw new Error((e as { stdout?: string }).stdout?.trim() || (e as Error).message);
-    }
+    return new Promise((resolve, reject) => {
+        const child = spawn('docker', dockerArgs);
+        const chunks: string[] = [];
+
+        child.stdout.on('data', (data: Buffer) => {
+            const text = data.toString();
+            chunks.push(text);
+            for (const line of text.trimEnd().split('\n')) {
+                logger.info(line);
+            }
+        });
+
+        child.stderr.on('data', (data: Buffer) => {
+            const text = data.toString();
+            chunks.push(text);
+            for (const line of text.trimEnd().split('\n')) {
+                logger.error(line);
+            }
+        });
+
+        child.on('close', (code) => {
+            const output = chunks.join('');
+            if (code === 0) {
+                resolve(output);
+            } else {
+                reject(new Error(output.trim() || `Docker process exited with code ${code}`));
+            }
+        });
+    });
 }
 
 export function mapMinaNetworkToFrost(minaNetwork: string): string {

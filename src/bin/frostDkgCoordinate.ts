@@ -78,7 +78,7 @@ logger.log('Waiting for all participants to join. They need to run the command f
 
 let dkgOutput: string;
 try {
-    dkgOutput = runFrostClient({
+    dkgOutput = await runFrostClient({
         frostConfigHostPath: hostConfigPath,
         args: [
             'dkg',
