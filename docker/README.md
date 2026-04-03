@@ -69,24 +69,13 @@ Edit `docker-compose.services.swarm.yml`:
 
 The compose file references this env file via `env_file`. The server derives its X25519 public key at startup and exposes it via the `/pubkey` endpoint. Participants fetch it automatically when sending notifications.
 
-### 4. Build the notification service image
-
-The notification service source and Dockerfile are at [`telegram-notification-service/`](../telegram-notification-service/) in the project root:
-
-```sh
-cd telegram-notification-service
-./build.sh
-```
-
-This builds multi-arch images (amd64 + arm64) using `docker buildx`.
-
-### 5. Deploy the load balancer
+### 4. Deploy the load balancer
 
 ```sh
 ./swarm/lb-up.sh
 ```
 
-### 6. Deploy the services
+### 5. Deploy the services
 
 ```sh
 ./swarm/frost-up.sh
@@ -111,7 +100,7 @@ Test the notification service is running (should return the server's X25519 publ
 curl https://notify.yourdomain.com/pubkey
 ```
 
-### 7. Update your .env
+### 6. Update your .env
 
 Set these in your project `.env` so the ceremony scripts can find the services:
 
@@ -147,3 +136,22 @@ The default registry is `0x6a6f6e6e79`. Override with the `REGISTRY` environment
 ```sh
 REGISTRY=your-registry ./swarm/frost-up.sh
 ```
+
+## Building and releasing the notification service
+
+Only needed when the notification service code has changed. The source and Dockerfile are at [`telegram-notification-service/`](../telegram-notification-service/).
+
+**Build** the multi-arch images (amd64 + arm64) locally:
+
+```sh
+cd telegram-notification-service
+./build.sh
+```
+
+**Release** — push the images and create multi-arch manifests for the versioned and `latest` tags:
+
+```sh
+./release.sh
+```
+
+The version is read from `telegram-notification-service/package.json`.
