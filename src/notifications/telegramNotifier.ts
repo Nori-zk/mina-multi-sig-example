@@ -50,12 +50,15 @@ export class TelegramNotifier implements Notifier {
             }
 
             logger.log('Notification sent to Telegram successfully.');
-            logger.debug(message);
+            for (const line of message.split('\n')) {
+                logger.debug(line);
+            }
         } catch (e) {
             logger.error(`Failed to send notification to Telegram: ${(e as Error).message}`);
             logger.warn('Please send the following message to the Telegram group manually:');
-            logger.log('');
-            logger.log(message);
+            for (const line of message.split('\n')) {
+                logger.log(line);
+            }
         }
     }
 }
