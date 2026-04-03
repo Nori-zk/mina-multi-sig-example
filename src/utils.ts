@@ -1,5 +1,7 @@
 import {
+  Bool,
   Field,
+  PublicKey,
   type ProvableType,
   VerificationKey,
   type SmartContract,
@@ -258,3 +260,44 @@ export const ensureDirectory = (p: string): string => {
 export const bytesToHex = (bytes: Uint8Array): string => Buffer.from(bytes).toString('hex');
 
 export const hexToBytes = (hex: string): Uint8Array => Buffer.from(hex, 'hex');
+
+// FROST config key conversion
+
+/**
+ * Convert a FROST config hex group key to a Mina base58 public key.
+ *
+ * The FROST config stores group keys as `[group.<hex>]` where the hex is a 96-byte
+ * arkworks compressed Pallas point serialization:
+ * - Bytes 0-31: x-coordinate in little-endian
+ * - Byte 32: 0x80 if y is odd, 0x00 if y is even
+ * - Bytes 33-95: zero padding
+ */
+export function frostHexToBase58(hex: string): string {
+    const bytes = hexToBytes(hex);
+    // x-coordinate: first 32 bytes, little-endian → reverse to big-endian → bigint
+    const xBytes = bytes.slice(0, 32);
+    const xBigEndian = Uint8Array.from(xBytes).reverse();
+    const x = BigInt('0x' + bytesToHex(xBigEndian));
+    // y parity: byte 32, 0x80 = odd
+    const isOdd = (bytes[32] & 0x80) !== 0;
+    return PublicKey.from({ x: Field(x), isOdd: Bool(isOdd) }).toBase58();
+}
+
+/**
+ * Find the hex group key in a FROST config that corresponds to a Mina base58 address.
+ * Returns the hex key for use with the FROST client `-g` flag.
+ */
+export function resolveHexGroupKey(frostConfigContent: string, minaBase58Address: string): string {
+    const groupMatches = frostConfigContent.matchAll(/\[group\.([a-f0-9]+)\]/g);
+    for (const match of groupMatches) {
+        const hexKey = match[1];
+        try {
+            if (frostHexToBase58(hexKey) === minaBase58Address) {
+                return hexKey;
+            }
+        } catch {
+            // Skip malformed keys
+        }
+    }
+    throw new Error(`No FROST group found for Mina address ${minaBase58Address}. Check that DKG completed and the address is correct.`);
+}

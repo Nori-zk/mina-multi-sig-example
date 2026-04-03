@@ -5,8 +5,8 @@ import { validateTagForCeremony, askYesNo } from '../preflight.js';
 import { formatO1jsVersionInfo } from '../versionInfo.js';
 import { verifyTag, cleanupAllVerifyDirs } from '../verifyTag.js';
 import { runFrostClient, frostGuestConfigPath } from '../frostDockerClient.js';
-import { existsSync } from 'fs';
-import { getAbsolutePath } from '../utils.js';
+import { existsSync, readFileSync } from 'fs';
+import { getAbsolutePath, resolveHexGroupKey } from '../utils.js';
 
 const logger = new Logger('VerifyUpdateVkTx');
 new LogPrinter('VerifyUpdateVkTx');
@@ -50,6 +50,21 @@ const toTag = possibleToTag!;
 const adminGroupPubKey = possibleAdminGroupPubKey!;
 const frostServerUrl = possibleFrostServerUrl!;
 const frostConfigPath = possibleAbsoluteConfigPath!;
+
+// --- Resolve hex group keys for FROST client ---
+
+const frostContent = readFileSync(frostConfigPath, 'utf8');
+
+let adminHexGroupKey: string | undefined;
+try { adminHexGroupKey = resolveHexGroupKey(frostContent, adminGroupPubKey.toBase58()); }
+catch (e) { issues.push(`NORI_MINA_TOKEN_BRIDGE_ADDRESS: ${(e as Error).message}`); }
+
+if (issues.length) {
+    logger.warn('Could not continue due to the following issues:');
+    issues.forEach((issue) => logger.error(`  - ${issue}`));
+    logger.fatal('Encountered a fatal error and cannot continue.');
+    process.exit(1);
+}
 
 // --- Pre-flight ---
 
@@ -99,7 +114,7 @@ try {
             'participant',
             '-c', frostGuestConfigPath(frostConfigPath),
             '-s', frostServerUrl,
-            '-g', adminGroupPubKey.toBase58(),
+            '-g', adminHexGroupKey!,
             '-y',
         ],
     });

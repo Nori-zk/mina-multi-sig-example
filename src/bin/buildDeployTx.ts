@@ -16,7 +16,7 @@ import { NoriTokenBridge } from '../NoriTokenBridge.mock.js';
 import { FungibleToken } from '../TokenBase.mock.js';
 import { validateTagForCeremony } from '../preflight.js';
 import { readO1jsVersionInfo } from '../versionInfo.js';
-import { getAbsolutePath } from '../utils.js';
+import { getAbsolutePath, resolveHexGroupKey } from '../utils.js';
 import { getNotifier } from '../notifications/notifier.js';
 import { type DeployOperation } from '../notifications/events.js';
 import { runFrostClient, mapMinaNetworkToFrost, frostGuestConfigPath, frostGuestAuditDir } from '../frostDockerClient.js';
@@ -101,6 +101,15 @@ await validateTagForCeremony(tag, 'Tag', logger);
 // --- Read signer pubkeys from FROST config ---
 
 const frostContent = readFileSync(frostConfigPath, 'utf8');
+
+let adminHexGroupKey: string | undefined;
+try { adminHexGroupKey = resolveHexGroupKey(frostContent, adminGroupPubKey.toBase58()); }
+catch (e) { issues.push(`NORI_MINA_TOKEN_BRIDGE_ADDRESS: ${(e as Error).message}`); }
+
+let tokenHexGroupKey: string | undefined;
+try { tokenHexGroupKey = resolveHexGroupKey(frostContent, tokenGroupPubKey.toBase58()); }
+catch (e) { issues.push(`NORI_MINA_TOKEN_BASE_ADDRESS: ${(e as Error).message}`); }
+
 const signerPubkeys: string[] = [];
 const signerMatches = frostContent.matchAll(/\[contact\.[^\]]+\][\s\S]*?pubkey\s*=\s*"([^"]+)"/g);
 for (const match of signerMatches) {
@@ -212,7 +221,7 @@ try {
             'coordinator',
             '-c', frostGuestConfigPath(frostConfigPath),
             '-s', frostServerUrl,
-            '-g', adminGroupPubKey.toBase58(),
+            '-g', adminHexGroupKey!,
             '-S', signerPubkeys.join(','),
             '-m', `${frostGuestAuditDir}/${unsignedFilename}`,
             '-o', `${frostGuestAuditDir}/${adminSignedFilename}`,
@@ -237,7 +246,7 @@ try {
             'coordinator',
             '-c', frostGuestConfigPath(frostConfigPath),
             '-s', frostServerUrl,
-            '-g', tokenGroupPubKey.toBase58(),
+            '-g', tokenHexGroupKey!,
             '-S', signerPubkeys.join(','),
             '-m', `${frostGuestAuditDir}/${adminSignedFilename}`,
             '-o', `${frostGuestAuditDir}/${signedFilename}`,

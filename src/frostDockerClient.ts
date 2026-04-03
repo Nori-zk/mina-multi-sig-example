@@ -81,3 +81,4 @@ export function runFrostClient(options: FrostDockerRunOptions): Promise<string> 
 export function mapMinaNetworkToFrost(minaNetwork: string): string {
     return minaNetwork === 'mainnet' ? 'mainnet' : 'testnet';
 }
+
