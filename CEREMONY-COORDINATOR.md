@@ -81,13 +81,24 @@ This reads all contacts from your FROST config, generates the server's X25519 ke
 2. Set up the Docker Swarm cluster
 3. Configure and deploy the load balancer and services
 
-Once deployed, update your own `.env` with the service URLs:
+Once deployed, update your own `.env` with the service URLs and notification namespace:
 ```
 FROST_SERVER_URL=frost.yourdomain.com
 NOTIFICATION_SERVICE_URL=https://notify.yourdomain.com
+NOTIFICATION_NAMESPACE=nori-multisig
 ```
 
-Paste these values in the Telegram group chat so all committee members can add them to their `.env` files too.
+`NOTIFICATION_NAMESPACE` must match the value configured on the notification server. The default in `.env.example.coordinator` is `nori-multisig`.
+
+> **Note:** `FROST_SERVER_URL` is a bare hostname — no `https://` prefix. The FROST client adds the scheme internally. `NOTIFICATION_SERVICE_URL` is a full URL with `https://`.
+
+Paste the following in the Telegram group chat so all committee members can add the service URLs to their `.env`:
+
+> The coordination services are live. Add these to your `.env`:
+> `FROST_SERVER_URL=frost.yourdomain.com`
+> `NOTIFICATION_SERVICE_URL=https://notify.yourdomain.com`
+> `NOTIFICATION_NAMESPACE=nori-multisig`
+> Note: `FROST_SERVER_URL` is just the hostname — no `https://` prefix.
 
 ### 1.5 Distributed Key Generation (DKG)
 

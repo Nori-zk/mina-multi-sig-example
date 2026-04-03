@@ -16,7 +16,7 @@ import { NoriTokenBridge } from '../NoriTokenBridge.mock.js';
 import { FungibleToken } from '../TokenBase.mock.js';
 import { validateTagForCeremony } from '../preflight.js';
 import { readO1jsVersionInfo } from '../versionInfo.js';
-import { notifier } from '../notifications/notifier.js';
+import { getNotifier } from '../notifications/notifier.js';
 import { type DeployOperation } from '../notifications/events.js';
 import { runFrostClient, mapMinaNetworkToFrost, frostGuestConfigPath, frostGuestAuditDir } from '../frostDockerClient.js';
 import { appendHistoryEntry, getHistoryFilePath } from '../ceremonyHistory.js';
@@ -175,7 +175,7 @@ logger.log(`Metadata: ${metaPath}`);
 
 // --- Notify participants ---
 
-await notifier.notify({
+await getNotifier().notify({
     event: 'VerifyAndSign',
     operation,
     txJsonPath: unsignedPath,
@@ -245,7 +245,7 @@ try {
 
 // --- Signing complete ---
 
-await notifier.notify({ event: 'SigningComplete', operation });
+await getNotifier().notify({ event: 'SigningComplete', operation });
 
 // --- Re-sign with fee payer and submit ---
 
@@ -255,12 +255,12 @@ const signedTx = Mina.Transaction.fromJSON(signedTxJson);
 const reSignedTx = signedTx.sign([senderKey]);
 const pendingTx = await reSignedTx.send();
 
-await notifier.notify({ event: 'TransactionSubmitted', operation, txHash: pendingTx.hash });
+await getNotifier().notify({ event: 'TransactionSubmitted', operation, txHash: pendingTx.hash });
 
 logger.log('Waiting for inclusion in a block...');
 await pendingTx.wait();
 
-await notifier.notify({ event: 'TransactionConfirmed', operation, txHash: pendingTx.hash });
+await getNotifier().notify({ event: 'TransactionConfirmed', operation, txHash: pendingTx.hash });
 
 // --- Record history ---
 

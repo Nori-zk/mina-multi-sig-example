@@ -51,11 +51,12 @@ npm run frost-import -- <their-contact-string>
 
 ### 1.3 Configure service URLs
 
-Once the coordinator has deployed the frostd and notification services, they will paste the service URLs in the Telegram group chat. Add them to your `.env`:
+Once the coordinator has deployed the frostd and notification services, they will paste the service URLs and namespace in the Telegram group chat. Add them to your `.env`:
 
 ```
 FROST_SERVER_URL=frost.yourdomain.com
 NOTIFICATION_SERVICE_URL=https://notify.yourdomain.com
+NOTIFICATION_NAMESPACE=nori-multisig
 ```
 
 ### 1.4 Distributed Key Generation (DKG)

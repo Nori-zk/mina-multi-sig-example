@@ -4,7 +4,7 @@ import { Logger, LogPrinter } from 'esm-iso-logger';
 import { runFrostClient, frostGuestConfigPath } from '../frostDockerClient.js';
 import { existsSync } from 'fs';
 import { getAbsolutePath } from '../utils.js';
-import { notifier } from '../notifications/notifier.js';
+import { getNotifier } from '../notifications/notifier.js';
 
 const logger = new Logger('FrostDkgCoordinate');
 new LogPrinter('FrostDkgCoordinate');
@@ -64,7 +64,7 @@ for (const match of existingGroupMatches) {
 }
 
 // Send notification to participants
-await notifier.notify({
+await getNotifier().notify({
     event: 'JoinDkg',
     description,
     threshold: Number(threshold),
@@ -124,7 +124,7 @@ if (newGroupKey) {
     logger.log(`  ${envVarLine}`);
 
     // Notify participants with the group public key and env var they need to add
-    await notifier.notify({
+    await getNotifier().notify({
         event: 'DkgComplete',
         description,
         groupPublicKey: newGroupKey,
