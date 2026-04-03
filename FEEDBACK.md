@@ -68,4 +68,4 @@ The coordinator's `SendSigningPackage` fails with `SnowError(Input)` for ZkApp d
 - `src/cipher.rs` — `encrypt()` calls `snow`'s `write_message()` which enforces the 65535 limit
 - `api::MAX_MSG_SIZE` — the buffer size constant
 
-The fix likely needs message chunking in the Noise transport layer, or avoiding hex encoding of the message bytes in `SigningPackage` serialization.
+The 65535 limit is enforced at two layers: Noise (`snow`'s `write_message()`) and the frostd server (`api::MAX_MSG_SIZE`). Since frostd is upstream (`frost-tools`) and also enforces the same limit, the client comms layer needs to chunk messages into multiple frostd sends/receives. Coordinator splits before encrypt/send, participant collects multiple messages and reassembles after receive/decrypt. The Cipher stays single-frame and doesn't need to change.

@@ -110,13 +110,18 @@ let tokenHexGroupKey: string | undefined;
 try { tokenHexGroupKey = resolveHexGroupKey(frostContent, tokenGroupPubKey.toBase58()); }
 catch (e) { issues.push(`NORI_MINA_TOKEN_BASE_ADDRESS: ${(e as Error).message}`); }
 
+// Collect all signer pubkeys: own communication key + all contacts
 const signerPubkeys: string[] = [];
+const ownPubkeyMatch = frostContent.match(/\[communication_key\][\s\S]*?pubkey\s*=\s*"([^"]+)"/);
+if (ownPubkeyMatch) {
+    signerPubkeys.push(ownPubkeyMatch[1]);
+}
 const signerMatches = frostContent.matchAll(/\[contact\.[^\]]+\][\s\S]*?pubkey\s*=\s*"([^"]+)"/g);
 for (const match of signerMatches) {
     signerPubkeys.push(match[1]);
 }
-if (signerPubkeys.length === 0) {
-    issues.push('No contacts in FROST config. Import contacts with npm run frost-import first.');
+if (signerPubkeys.length < 2) {
+    issues.push('Not enough signers in FROST config. Need at least your own key and one contact. Run frost-init and frost-import first.');
 }
 if (issues.length) {
     logger.warn('Could not continue due to the following issues:');
