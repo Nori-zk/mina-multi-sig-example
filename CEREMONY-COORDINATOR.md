@@ -34,7 +34,7 @@ Create a Telegram bot via [@BotFather](https://t.me/botfather):
 2. Choose a name and username
 3. Save the **bot token** — you'll need it when deploying the notification service
 4. Add the bot to your committee's Telegram group
-5. Get the **chat ID** — send a message in the group, then visit `https://api.telegram.org/bot<YOUR_BOT_TOKEN>/getUpdates` and look for the `chat.id` field
+5. Get the **chat ID** — open the group in [Telegram Web](https://web.telegram.org), look at the URL which will be `https://web.telegram.org/a/#-<chat-id>`, the number after `#-` is your chat ID (include the `-` prefix when setting `TELEGRAM_CHAT_ID`)
 
 ### 1.2 Initialize your FROST identity
 
