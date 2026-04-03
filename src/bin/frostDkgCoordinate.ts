@@ -82,7 +82,7 @@ try {
         frostConfigHostPath: hostConfigPath,
         args: [
             'dkg',
-            '-c', frostGuestConfigPath,
+            '-c', frostGuestConfigPath(hostConfigPath),
             '-d', description,
             '-s', serverUrl,
             '-t', threshold,

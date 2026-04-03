@@ -35,7 +35,7 @@ let importOutput: string;
 try {
     importOutput = runFrostClient({
         frostConfigHostPath: hostConfigPath,
-        args: ['import', contactString, '-c', frostGuestConfigPath],
+        args: ['import', contactString, '-c', frostGuestConfigPath(hostConfigPath)],
     });
 } catch (e) {
     logger.error(`${(e as Error).message}`);

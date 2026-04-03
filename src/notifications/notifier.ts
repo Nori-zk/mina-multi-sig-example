@@ -1,11 +1,10 @@
 import { readFileSync } from 'fs';
-import { Logger, LogPrinter } from 'esm-iso-logger';
+import { Logger } from 'esm-iso-logger';
 import { type CeremonyEventPayload } from './events.js';
 import { TelegramNotifier } from './telegramNotifier.js';
 import { getAbsolutePath } from '../utils.js';
 
 const logger = new Logger('Notifier');
-new LogPrinter('Notifier');
 
 export interface Notifier {
     notify(event: CeremonyEventPayload): void | Promise<void>;

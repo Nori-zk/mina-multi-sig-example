@@ -3,4 +3,5 @@ build
 .env
 .env.nori-mock-token*
 .env.mesa
+/.env.notification-server
 ceremony/verify/

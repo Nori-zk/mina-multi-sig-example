@@ -55,7 +55,7 @@ let initOutput: string;
 try {
     initOutput = runFrostClient({
         frostConfigHostPath: hostConfigPath,
-        args: ['init', '-c', frostGuestConfigPath],
+        args: ['init', '-c', frostGuestConfigPath(hostConfigPath)],
     });
 } catch (e) {
     logger.error(`${(e as Error).message}`);
@@ -72,7 +72,7 @@ let exportOutput: string;
 try {
     exportOutput = runFrostClient({
         frostConfigHostPath: hostConfigPath,
-        args: ['export', '-n', name, '-c', frostGuestConfigPath],
+        args: ['export', '-n', name, '-c', frostGuestConfigPath(hostConfigPath)],
     });
 } catch (e) {
     logger.error(`${(e as Error).message}`);
@@ -87,14 +87,16 @@ for (const line of exportOutput.trim().split('\n')) {
 const contactStringMatch = exportOutput.match(/minafrost1[a-z0-9]+/);
 const contactString = contactStringMatch ? contactStringMatch[0] : null;
 
+if (!contactString) {
+    logger.error('Could not extract contact string from FROST export output.');
+    logger.fatal('Encountered a fatal error and cannot continue.');
+    process.exit(1);
+}
+
 logger.log('');
 logger.log('=== Next Steps ===');
-if (contactString) {
-    logger.log('Paste the following line in the Telegram group chat for other committee members:');
-    logger.log('');
-    logger.log(`npm run frost-import -- ${contactString}`);
-    logger.log('');
-    logger.log('Each committee member copies that line and runs it to import your contact.');
-} else {
-    logger.warn('Could not extract contact string from output. Check the output above and share it manually.');
-}
+logger.log('Paste the following line in the Telegram group chat for other committee members:');
+logger.log('');
+logger.log(`Hi, I'm ${name}. To add me to your FROST contacts run: "npm run frost-import -- ${contactString}"`);
+logger.log('');
+logger.log('Each committee member copies that line and runs it to import your contact.');

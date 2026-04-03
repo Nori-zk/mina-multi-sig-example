@@ -97,7 +97,7 @@ try {
         frostConfigHostPath: frostConfigPath,
         args: [
             'participant',
-            '-c', frostGuestConfigPath,
+            '-c', frostGuestConfigPath(frostConfigPath),
             '-s', frostServerUrl,
             '-g', adminGroupPubKey.toBase58(),
             '-y',

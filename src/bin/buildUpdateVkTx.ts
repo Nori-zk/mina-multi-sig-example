@@ -211,7 +211,7 @@ try {
         auditHostPath: auditDir,
         args: [
             'coordinator',
-            '-c', frostGuestConfigPath,
+            '-c', frostGuestConfigPath(frostConfigPath),
             '-s', frostServerUrl,
             '-g', adminGroupPubKey.toBase58(),
             '-S', signerPubkeys.join(','),

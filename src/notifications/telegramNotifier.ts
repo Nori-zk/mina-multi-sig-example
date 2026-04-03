@@ -1,11 +1,10 @@
-import { Logger, LogPrinter } from 'esm-iso-logger';
+import { Logger } from 'esm-iso-logger';
 import { type CeremonyEventPayload } from './events.js';
 import { formatEvent } from './formatters.js';
 import { type Notifier } from './notifier.js';
 import { createJwt } from '../dhHmacJwt.js';
 
 const logger = new Logger('TelegramNotifier');
-new LogPrinter('TelegramNotifier');
 
 export class TelegramNotifier implements Notifier {
     private serviceUrl: string;
