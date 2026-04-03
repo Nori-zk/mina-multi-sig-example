@@ -1,88 +1,59 @@
 import express from 'express';
-import { createHmac } from 'crypto';
+import { getSodium, verifyJwt } from './dhHmacJwt.js';
 
 const app = express();
 app.use(express.json());
 
-const PORT = Number(process.env.PORT || 3000);
-const NAMESPACE = process.env.NOTIFICATION_NAMESPACE;
-const ALLOWED_KEYS = (process.env.NOTIFICATION_ALLOWED_KEYS || '').split(',').filter(Boolean);
-const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
+// --- Validate environment ---
 
-if (!NAMESPACE) {
-    console.error('Missing required env: NOTIFICATION_NAMESPACE');
+const possiblePort = process.env.PORT;
+const possibleNamespace = process.env.NOTIFICATION_NAMESPACE;
+const possibleAllowedKeys = process.env.NOTIFICATION_ALLOWED_KEYS;
+const possibleBotToken = process.env.TELEGRAM_BOT_TOKEN;
+const possibleChatId = process.env.TELEGRAM_CHAT_ID;
+const possibleServerPrivkey = process.env.NOTIFICATION_SERVER_PRIVKEY;
+
+const issues: string[] = [];
+if (!possibleNamespace) issues.push('Missing required env: NOTIFICATION_NAMESPACE');
+if (!possibleAllowedKeys) issues.push('Missing required env: NOTIFICATION_ALLOWED_KEYS (comma-separated hex X25519 public keys)');
+if (!possibleBotToken) issues.push('Missing required env: TELEGRAM_BOT_TOKEN');
+if (!possibleChatId) issues.push('Missing required env: TELEGRAM_CHAT_ID');
+if (!possibleServerPrivkey) issues.push('Missing required env: NOTIFICATION_SERVER_PRIVKEY (hex X25519 private key — generate with npm run frost-notification-config)');
+
+if (issues.length) {
+    issues.forEach((issue) => console.error(`  - ${issue}`));
+    console.error('Cannot start notification service.');
     process.exit(1);
 }
-if (ALLOWED_KEYS.length === 0) {
-    console.error('Missing required env: NOTIFICATION_ALLOWED_KEYS (comma-separated hex public keys)');
+
+const port = Number(possiblePort || 3000);
+const namespace = possibleNamespace!;
+const allowedKeys = possibleAllowedKeys!.split(',').filter(Boolean).map(k => k.toLowerCase());
+const botToken = possibleBotToken!;
+const chatId = possibleChatId!;
+const serverPrivkeyHex = possibleServerPrivkey!;
+
+if (allowedKeys.length === 0) {
+    console.error('NOTIFICATION_ALLOWED_KEYS is set but contains no valid keys.');
     process.exit(1);
 }
-if (!TELEGRAM_BOT_TOKEN) {
-    console.error('Missing required env: TELEGRAM_BOT_TOKEN');
-    process.exit(1);
-}
-if (!TELEGRAM_CHAT_ID) {
-    console.error('Missing required env: TELEGRAM_CHAT_ID');
-    process.exit(1);
-}
 
-function verifyJwt(authHeader: string | undefined): { valid: boolean; error?: string } {
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return { valid: false, error: 'Missing or invalid Authorization header' };
-    }
+// --- Derive server public key ---
 
-    const token = authHeader.slice(7);
-    const parts = token.split('.');
-    if (parts.length !== 3) {
-        return { valid: false, error: 'Invalid JWT format' };
-    }
+const sodium = await getSodium();
+const serverPubkeyHex = Buffer.from(
+    sodium.crypto_scalarmult_base(Buffer.from(serverPrivkeyHex, 'hex'))
+).toString('hex');
 
-    const [header, payload, signature] = parts;
-
-    let decoded: { pub?: string; ns?: string; iat?: number };
-    try {
-        decoded = JSON.parse(Buffer.from(payload, 'base64url').toString());
-    } catch {
-        return { valid: false, error: 'Invalid JWT payload' };
-    }
-
-    if (!decoded.pub || !decoded.ns || !decoded.iat) {
-        return { valid: false, error: 'JWT payload missing required fields (pub, ns, iat)' };
-    }
-
-    if (decoded.ns !== NAMESPACE) {
-        return { valid: false, error: `Namespace mismatch: expected '${NAMESPACE}', got '${decoded.ns}'` };
-    }
-
-    if (!ALLOWED_KEYS.includes(decoded.pub)) {
-        return { valid: false, error: 'Public key not in allowed set' };
-    }
-
-    const expectedSignature = createHmac('sha256', Buffer.from(decoded.pub, 'hex'))
-        .update(`${header}.${payload}`)
-        .digest('base64url');
-
-    if (signature !== expectedSignature) {
-        return { valid: false, error: 'Invalid signature' };
-    }
-
-    // Check token age — reject if older than 5 minutes
-    const age = Math.floor(Date.now() / 1000) - decoded.iat;
-    if (age > 300) {
-        return { valid: false, error: 'Token expired (older than 5 minutes)' };
-    }
-
-    return { valid: true };
-}
+// --- Telegram ---
 
 async function sendTelegram(message: string): Promise<void> {
-    const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
+    const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
     const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-            chat_id: TELEGRAM_CHAT_ID,
+            chat_id: chatId,
             text: message,
             parse_mode: 'HTML',
         }),
@@ -94,8 +65,21 @@ async function sendTelegram(message: string): Promise<void> {
     }
 }
 
+// --- Routes ---
+
+app.get('/pubkey', (_req, res) => {
+    res.status(200).json({ pubkey: serverPubkeyHex });
+});
+
 app.post('/', async (req, res) => {
-    const auth = verifyJwt(req.headers.authorization);
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        res.status(401).json({ error: 'Missing or invalid Authorization header' });
+        return;
+    }
+
+    const token = authHeader.slice(7);
+    const auth = await verifyJwt(token, serverPrivkeyHex, allowedKeys, namespace);
     if (!auth.valid) {
         res.status(401).json({ error: auth.error });
         return;
@@ -120,8 +104,11 @@ app.get('/health', (_req, res) => {
     res.status(200).json({ ok: true });
 });
 
-app.listen(PORT, () => {
-    console.log(`Notification service listening on port ${PORT}`);
-    console.log(`Namespace: ${NAMESPACE}`);
-    console.log(`Allowed keys: ${ALLOWED_KEYS.length}`);
+// --- Start ---
+
+app.listen(port, () => {
+    console.log(`Notification service listening on port ${port}`);
+    console.log(`Namespace: ${namespace}`);
+    console.log(`Allowed keys: ${allowedKeys.length}`);
+    console.log(`Server public key: ${serverPubkeyHex}`);
 });

@@ -1,7 +1,7 @@
 import { execSync } from 'child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync } from 'fs';
 import { join, resolve } from 'path';
-import { type O1jsVersionInfo, readO1jsVersionInfo } from './versionInfo.js';
+import { readO1jsVersionInfo } from './versionInfo.js';
 import { type ContractVkInfo, type TagInfo } from './notifications/events.js';
 import { getRemoteUrl } from './preflight.js';
 import { rootDir } from './path.js';

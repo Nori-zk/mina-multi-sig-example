@@ -5,7 +5,8 @@ import { validateTagForCeremony, askYesNo } from '../preflight.js';
 import { formatO1jsVersionInfo } from '../versionInfo.js';
 import { verifyTag, cleanupAllVerifyDirs } from '../verifyTag.js';
 import { runFrostClient, frostGuestConfigPath } from '../frostDockerClient.js';
-import { checkDirectory, getAbsolutePath } from '../utils.js';
+import { existsSync } from 'fs';
+import { getAbsolutePath } from '../utils.js';
 
 const logger = new Logger('VerifyDeployTx');
 new LogPrinter('VerifyDeployTx');
@@ -23,12 +24,12 @@ if (!possibleTag) issues.push('Missing required first argument: <tag> — the gi
 if (!possibleAdminGroupPubKey58) issues.push('Missing required env: NORI_MINA_TOKEN_BRIDGE_ADDRESS — the admin contract address (from DKG)');
 if (!possibleTokenGroupPubKey58) issues.push('Missing required env: NORI_MINA_TOKEN_BASE_ADDRESS — the token contract address (from DKG)');
 if (!possibleFrostServerUrl) issues.push('Missing required env: FROST_SERVER_URL — the URL of the frostd coordination server');
-if (!possibleFrostConfigPath) issues.push('Missing required env: FROST_CONFIG_PATH — the directory where your FROST config TOML is stored');
+if (!possibleFrostConfigPath) issues.push('Missing required env: FROST_CONFIG_PATH — path to your FROST config file (e.g. ~/.config/frost/config)');
 
 const possibleAbsoluteConfigPath = possibleFrostConfigPath ? getAbsolutePath(possibleFrostConfigPath) : undefined;
 
-if (possibleAbsoluteConfigPath && !checkDirectory(possibleAbsoluteConfigPath)) {
-    issues.push(`FROST config directory does not exist: ${possibleAbsoluteConfigPath}. Run npm run frost-init first.`);
+if (possibleAbsoluteConfigPath && !existsSync(possibleAbsoluteConfigPath)) {
+    issues.push(`FROST config file does not exist: ${possibleAbsoluteConfigPath}. Run npm run frost-init first.`);
 }
 
 let possibleAdminGroupPubKey: PublicKey | undefined;

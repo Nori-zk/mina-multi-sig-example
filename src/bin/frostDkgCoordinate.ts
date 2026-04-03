@@ -2,7 +2,8 @@ import 'dotenv/config';
 import { readFileSync } from 'fs';
 import { Logger, LogPrinter } from 'esm-iso-logger';
 import { runFrostClient, frostGuestConfigPath } from '../frostDockerClient.js';
-import { checkDirectory, getAbsolutePath } from '../utils.js';
+import { existsSync } from 'fs';
+import { getAbsolutePath } from '../utils.js';
 import { notifier } from '../notifications/notifier.js';
 
 const logger = new Logger('FrostDkgCoordinate');
@@ -16,13 +17,13 @@ const possibleServerUrl = process.env.FROST_SERVER_URL;
 const issues: string[] = [];
 if (!possibleDescription) issues.push('Missing required first argument: <description> — a human-readable name for this FROST signing group (e.g. "admin group" or "token group"). All participants must use the exact same description.');
 if (!possibleThreshold) issues.push('Missing required second argument: <threshold> — the minimum number of signers required to produce a valid signature (e.g. 2 for a 2-of-3 scheme).');
-if (!possibleConfigPath) issues.push('Missing required env: FROST_CONFIG_PATH — the directory where your FROST config TOML is stored');
+if (!possibleConfigPath) issues.push('Missing required env: FROST_CONFIG_PATH — path to your FROST config file (e.g. ~/.config/frost/config)');
 if (!possibleServerUrl) issues.push('Missing required env: FROST_SERVER_URL — the URL of the frostd coordination server');
 
 const possibleAbsoluteConfigPath = possibleConfigPath ? getAbsolutePath(possibleConfigPath) : undefined;
 
-if (possibleAbsoluteConfigPath && !checkDirectory(possibleAbsoluteConfigPath)) {
-    issues.push(`FROST config directory does not exist: ${possibleAbsoluteConfigPath}. Run npm run frost-init first.`);
+if (possibleAbsoluteConfigPath && !existsSync(possibleAbsoluteConfigPath)) {
+    issues.push(`FROST config file does not exist: ${possibleAbsoluteConfigPath}. Run npm run frost-init first.`);
 }
 
 if (issues.length) {
@@ -38,7 +39,7 @@ const hostConfigPath = possibleAbsoluteConfigPath!;
 const serverUrl = possibleServerUrl!;
 
 // Read all contact public keys from FROST config
-const configContent = readFileSync(`${hostConfigPath}/credentials.toml`, 'utf8');
+const configContent = readFileSync(hostConfigPath, 'utf8');
 const contactPubkeys: string[] = [];
 const contactPubkeyMatches = configContent.matchAll(/\[contact\.[^\]]+\][\s\S]*?pubkey\s*=\s*"([^"]+)"/g);
 for (const match of contactPubkeyMatches) {
@@ -94,7 +95,7 @@ for (const line of dkgOutput.trim().split('\n')) {
 }
 
 // DKG writes the group to the config after all rounds complete — grep the new group key
-const updatedConfigContent = readFileSync(`${hostConfigPath}/credentials.toml`, 'utf8');
+const updatedConfigContent = readFileSync(hostConfigPath, 'utf8');
 const updatedGroupMatches = updatedConfigContent.matchAll(/\[group\.([a-f0-9]+)\]/g);
 let newGroupKey: string | null = null;
 for (const match of updatedGroupMatches) {

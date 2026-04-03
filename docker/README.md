@@ -18,7 +18,7 @@ Both stacks share the `web` overlay network. Caddy auto-discovers services via D
 | Service | Image | Port | Description |
 |---------|-------|------|-------------|
 | `frost-server` | `0x6a6f6e6e79/frost-server:latest` | 2744 | frostd FROST coordination server (from [mina-multi-sig](https://github.com/Nori-zk/mina-multi-sig)) |
-| `telegram-notification-service` | `0x6a6f6e6e79/telegram-multisig-ceremony-notification-service:latest` | 3000 | Receives JWT-authenticated ceremony notifications and forwards to Telegram |
+| `telegram-notification-service` | `0x6a6f6e6e79/telegram-multisig-ceremony-notification-service:latest` | 3000 | Receives DH-HMAC JWT-authenticated ceremony notifications and forwards to Telegram ([README](../telegram-notification-service/README.md)) |
 
 ## Prerequisites
 
@@ -65,16 +65,9 @@ Edit `docker-compose.lb.swarm.yml`:
 Edit `docker-compose.services.swarm.yml`:
 - Replace `frost.example.com` with your frostd domain (e.g. `frost.yourdomain.com`)
 - Replace `tgns.example.com` with your notification service domain (e.g. `notify.yourdomain.com`)
-- Add the notification service environment variables (from the prerequisite steps above):
+- Fill in `docker/.env.notification-server` with the values from `npm run frost-notification-config` (run from the project root). The script generates all values except `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` which you fill in manually.
 
-```yaml
-telegram-notification-service:
-    environment:
-      - NOTIFICATION_NAMESPACE=nori-multisig
-      - NOTIFICATION_ALLOWED_KEYS=<from frost-notification-config output>
-      - TELEGRAM_BOT_TOKEN=<from @BotFather>
-      - TELEGRAM_CHAT_ID=<from your Telegram group>
-```
+The compose file references this env file via `env_file`. The server derives its X25519 public key at startup and exposes it via the `/pubkey` endpoint. Participants fetch it automatically when sending notifications.
 
 ### 4. Build the notification service image
 
@@ -112,10 +105,10 @@ Test the frostd server is reachable:
 curl https://frost.yourdomain.com/
 ```
 
-Test the notification service health endpoint:
+Test the notification service is running (should return the server's X25519 public key):
 
 ```sh
-curl https://notify.yourdomain.com/health
+curl https://notify.yourdomain.com/pubkey
 ```
 
 ### 7. Update your .env

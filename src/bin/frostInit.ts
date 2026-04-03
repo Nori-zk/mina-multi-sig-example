@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import { existsSync } from 'fs';
-import { resolve } from 'path';
+import { dirname } from 'path';
 import { Logger, LogPrinter } from 'esm-iso-logger';
 import { runFrostClient, frostGuestConfigPath } from '../frostDockerClient.js';
 import { checkDirectory, ensureDirectory, getAbsolutePath } from '../utils.js';
@@ -14,25 +14,25 @@ const possibleConfigPath = process.env.FROST_CONFIG_PATH;
 
 const issues: string[] = [];
 if (!possibleName) issues.push('Missing required first argument: <name> — your committee member name (e.g. "alice"). This identifies you to other participants during contact exchange.');
-if (!possibleConfigPath) issues.push('Missing required env: FROST_CONFIG_PATH — the directory where your FROST config TOML will be stored (e.g. ~/.config/frost)');
+if (!possibleConfigPath) issues.push('Missing required env: FROST_CONFIG_PATH — path to your FROST config file (e.g. ~/.config/frost/config)');
 
 const possibleAbsoluteConfigPath = possibleConfigPath ? getAbsolutePath(possibleConfigPath) : undefined;
 
-if (possibleAbsoluteConfigPath && !checkDirectory(possibleAbsoluteConfigPath)) {
-    logger.warn(`FROST config directory does not exist: ${possibleAbsoluteConfigPath}`);
-    if (!await askYesNo('Do you want to create this directory?')) {
-        issues.push(`Directory missing: Docker cannot mount the non-existent path: ${possibleAbsoluteConfigPath}`);
-    } else {
-        ensureDirectory(possibleAbsoluteConfigPath);
-        logger.log(`Created directory: ${possibleAbsoluteConfigPath}`);
-    }
-}
-
 if (possibleAbsoluteConfigPath) {
-    const configFilePath = resolve(possibleAbsoluteConfigPath, 'credentials.toml');
-    if (existsSync(configFilePath)) {
+    const baseDir = dirname(possibleAbsoluteConfigPath);
+    if (!checkDirectory(baseDir)) {
+        logger.warn(`Parent directory does not exist: ${baseDir}`);
+        if (!await askYesNo('Do you want to create it?')) {
+            issues.push(`Directory missing: Docker cannot mount the file without its parent directory: ${baseDir}`);
+        } else {
+            ensureDirectory(baseDir);
+            logger.log(`Created directory: ${baseDir}`);
+        }
+    }
+
+    if (existsSync(possibleAbsoluteConfigPath)) {
         issues.push(
-            `FROST config already exists at ${configFilePath}. ` +
+            `FROST config already exists at ${possibleAbsoluteConfigPath}. ` +
             'Re-initializing would overwrite your communication keypair and key shares. ' +
             'This could permanently destroy access to contracts managed by this key. ' +
             'If you need to re-initialize, manually back up and remove the existing config first.'

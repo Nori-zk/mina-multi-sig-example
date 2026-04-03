@@ -25,7 +25,7 @@ Open `.env` in your editor. You will fill in values progressively as you work th
 
 ### 1.1 Initialize your FROST identity
 
-`FROST_CONFIG_PATH` is already set to `~/.config/frost` in the example `.env` — change it if you want a different location. Then run:
+`FROST_CONFIG_PATH` is already set to `~/.config/frost/config` in the example `.env` — this is the path to the FROST config file. Change it if you want a different location. Then run:
 
 ```bash
 npm run frost-init -- <your-name>

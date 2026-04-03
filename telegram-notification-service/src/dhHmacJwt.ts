@@ -1,7 +1,31 @@
-import { ed25519 } from '@noble/curves/ed25519.js';
+import { createHmac } from 'crypto';
+import _sodium from 'libsodium-wrappers-sumo';
 
-// Self signed JWT scheme does rely on TLS to prevent replay attacks 
+// DH-HMAC JWT scheme using X25519 key material from the FROST config.
+//
+// Each participant derives a unique shared secret with the notification server
+// via X25519 Diffie-Hellman: DH(participantPriv, serverPub) = DH(serverPriv, participantPub).
+// The JWT is HMAC-SHA256'd with that shared secret.
+// The participant's X25519 public key is in the JWT payload so the server knows which DH to compute.
+// The server exposes its public key via a /pubkey endpoint.
+// Participants fetch it at notification time — no pre-configuration needed.
+//
+// This scheme does rely on TLS to prevent replay attacks.
 // Key holders in the allowedKeys can spam we have to trust them not to.
+
+export async function getSodium() {
+    await _sodium.ready;
+    return _sodium;
+}
+
+export async function deriveSharedSecret(myPrivkeyHex: string, theirPubkeyHex: string): Promise<Buffer> {
+    const sodium = await getSodium();
+    const shared = sodium.crypto_scalarmult(
+        Buffer.from(myPrivkeyHex, 'hex'),
+        Buffer.from(theirPubkeyHex, 'hex'),
+    );
+    return Buffer.from(shared);
+}
 
 interface JwtPayload {
     pub?: string;
@@ -9,8 +33,10 @@ interface JwtPayload {
     iat?: number;
 }
 
-export function createJwt(pubkeyHex: string, privkeyHex: string, namespace: string): string {
-    const header = Buffer.from(JSON.stringify({ alg: 'EdDSA', typ: 'JWT' })).toString('base64url');
+export async function createJwt(pubkeyHex: string, privkeyHex: string, serverPubkeyHex: string, namespace: string): Promise<string> {
+    const shared = await deriveSharedSecret(privkeyHex, serverPubkeyHex);
+
+    const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
     const payload = Buffer.from(JSON.stringify({
         pub: pubkeyHex,
         ns: namespace,
@@ -18,18 +44,20 @@ export function createJwt(pubkeyHex: string, privkeyHex: string, namespace: stri
     })).toString('base64url');
 
     const message = `${header}.${payload}`;
-    const signature = ed25519.sign(Buffer.from(message), Buffer.from(privkeyHex, 'hex'));
-    const signatureB64 = Buffer.from(signature).toString('base64url');
+    const signature = createHmac('sha256', shared)
+        .update(message)
+        .digest('base64url');
 
-    return `${message}.${signatureB64}`;
+    return `${message}.${signature}`;
 }
 
-export function verifyJwt(
+export async function verifyJwt(
     token: string,
+    serverPrivkeyHex: string,
     allowedKeys: string[],
     expectedNamespace: string,
     maxAgeSecs: number = 300,
-): { valid: boolean; error?: string } {
+): Promise<{ valid: boolean; error?: string }> {
     const parts = token.split('.');
     if (parts.length !== 3) {
         return { valid: false, error: 'Invalid JWT format' };
@@ -54,8 +82,8 @@ export function verifyJwt(
     }
 
     const now = Math.floor(Date.now() / 1000);
-    
-    // Note: iat is client-controlled since they self-sign. 
+
+    // Note: iat is client-controlled since participants create the JWT.
     // This validation rejects obviously broken values (future timestamps, non-integers)
     // but a key holders can always mint fresh tokens with iat: now()
     // we only trust the holders within allowedKeys to not tamper!
@@ -67,26 +95,18 @@ export function verifyJwt(
         return { valid: false, error: 'Invalid issued-at time' };
     }
 
-    let sigBytes: Buffer;
-    try {
-        sigBytes = Buffer.from(sigB64, 'base64url');
-    } catch {
-        return { valid: false, error: 'Invalid signature encoding' };
-    }
+    // CRITICAL: Verify HMAC BEFORE trusting any claims in the payload.
+    // Derive the DH shared secret using server's private key and participant's public key from the JWT.
+    // If the public key is forged, the DH produces a different shared secret and HMAC fails.
+    const shared = await deriveSharedSecret(serverPrivkeyHex, decoded.pub);
 
-    // CRITICAL: Verify signature BEFORE trusting any claims in the payload
     const message = `${headerB64}.${payloadB64}`;
-    try {
-        const isValid = ed25519.verify(
-            sigBytes,
-            Buffer.from(message),
-            Buffer.from(decoded.pub, 'hex')
-        );
-        if (!isValid) {
-            return { valid: false, error: 'Invalid signature' };
-        }
-    } catch {
-        return { valid: false, error: 'Signature verification failed' };
+    const expectedSig = createHmac('sha256', shared)
+        .update(message)
+        .digest('base64url');
+
+    if (sigB64 !== expectedSig) {
+        return { valid: false, error: 'Invalid signature' };
     }
 
     // Only after signature verification succeeds, validate authorization claims

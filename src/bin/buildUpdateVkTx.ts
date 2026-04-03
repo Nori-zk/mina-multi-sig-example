@@ -142,6 +142,7 @@ const txn = await Mina.transaction(
 logger.log('Proving transaction...');
 await txn.prove();
 
+// UpdateFullCommitment — FROST skips partial commitments
 txn.transaction.accountUpdates.forEach((au) => {
     au.body.useFullCommitment = Bool(true);
 });

@@ -38,7 +38,7 @@ Create a Telegram bot via [@BotFather](https://t.me/botfather):
 
 ### 1.2 Initialize your FROST identity
 
-`FROST_CONFIG_PATH` is already set to `~/.config/frost` in the example `.env` — change it if you want a different location. Then run:
+`FROST_CONFIG_PATH` is already set to `~/.config/frost/config` in the example `.env` — this is the path to the FROST config file. Change it if you want a different location. Then run:
 
 ```bash
 npm run frost-init -- <your-name>
@@ -76,7 +76,7 @@ First, generate the notification service config:
 npm run frost-notification-config
 ```
 
-This reads all contacts from your FROST config and outputs the environment variables needed by the notification service. Follow the [docker/README.md](docker/README.md) instructions to:
+This reads all contacts from your FROST config, generates the server's X25519 keypair, and writes the complete notification service configuration to `.env.notification-server`. Copy the values into `docker/.env.notification-server` and fill in `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID`. Follow the [docker/README.md](docker/README.md) instructions to:
 1. Provision domain names
 2. Set up the Docker Swarm cluster
 3. Configure and deploy the load balancer and services

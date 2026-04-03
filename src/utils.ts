@@ -1,9 +1,6 @@
 import {
-  Bytes,
   Field,
   type ProvableType,
-  Struct,
-  UInt8,
   VerificationKey,
   type SmartContract,
   type Cache,
@@ -16,9 +13,8 @@ import {
 
 import { type Logger } from 'esm-iso-logger';
 
-import { stat, mkdir } from 'fs/promises'; 
 import { homedir } from 'os';
-import path, { resolve } from 'path';
+import { resolve } from 'path';
 import { mkdirSync, statSync } from 'fs';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

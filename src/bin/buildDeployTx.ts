@@ -185,7 +185,6 @@ await notifier.notify({
 const unsignedFilename = basename(unsignedPath);
 const adminSignedFilename = `${datetime}-deploy-${tag}-admin-signed.json`;
 const signedFilename = `${datetime}-deploy-${tag}-signed.json`;
-const adminSignedPath = resolve(auditDir, adminSignedFilename);
 const signedPath = resolve(auditDir, signedFilename);
 const frostNetwork = mapMinaNetworkToFrost(network);
 

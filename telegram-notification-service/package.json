@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "express": "^4.21.0",
-    "@noble/curves": "^2.0.1"
+    "libsodium-wrappers-sumo": "^0.8.2"
   },
   "devDependencies": {
     "@types/express": "^4.17.21",

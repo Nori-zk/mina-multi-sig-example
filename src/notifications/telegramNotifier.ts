@@ -1,45 +1,41 @@
-import { createHmac } from 'crypto';
 import { Logger, LogPrinter } from 'esm-iso-logger';
 import { type CeremonyEventPayload } from './events.js';
 import { formatEvent } from './formatters.js';
 import { type Notifier } from './notifier.js';
+import { createJwt } from '../dhHmacJwt.js';
 
 const logger = new Logger('TelegramNotifier');
 new LogPrinter('TelegramNotifier');
 
-function createJwt(pubkey: string, privkey: string, namespace: string): string {
-    const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
-    const payload = Buffer.from(JSON.stringify({
-        pub: pubkey,
-        ns: namespace,
-        iat: Math.floor(Date.now() / 1000),
-    })).toString('base64url');
-
-    const signature = createHmac('sha256', Buffer.from(privkey, 'hex'))
-        .update(`${header}.${payload}`)
-        .digest('base64url');
-
-    return `${header}.${payload}.${signature}`;
-}
-
 export class TelegramNotifier implements Notifier {
     private serviceUrl: string;
     private namespace: string;
-    private pubkey: string;
-    private privkey: string;
+    private pubkeyHex: string;
+    private privkeyHex: string;
 
-    constructor(serviceUrl: string, namespace: string, pubkey: string, privkey: string) {
+    constructor(serviceUrl: string, namespace: string, pubkeyHex: string, privkeyHex: string) {
         this.serviceUrl = serviceUrl;
         this.namespace = namespace;
-        this.pubkey = pubkey;
-        this.privkey = privkey;
+        this.pubkeyHex = pubkeyHex;
+        this.privkeyHex = privkeyHex;
+    }
+
+    private async fetchServerPubkey(): Promise<string> {
+        const response = await fetch(`${this.serviceUrl}/pubkey`);
+        if (!response.ok) {
+            throw new Error(`Failed to fetch server public key: ${response.status}`);
+        }
+        const { pubkey } = await response.json() as { pubkey: string };
+        return pubkey;
     }
 
     async notify(event: CeremonyEventPayload): Promise<void> {
-        const token = createJwt(this.pubkey, this.privkey, this.namespace);
         const message = formatEvent(event);
 
         try {
+            const serverPubkey = await this.fetchServerPubkey();
+            const token = await createJwt(this.pubkeyHex, this.privkeyHex, serverPubkey, this.namespace);
+
             const response = await fetch(this.serviceUrl, {
                 method: 'POST',
                 headers: {

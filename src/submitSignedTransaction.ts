@@ -4,14 +4,13 @@ export type SubmitConfig = {
     networkUrl: string;
     networkId: NetworkId;
     feePayerKey: PrivateKey;
-    fee: number;
 };
 
 export async function submitSignedTransaction(
     signedTxJson: string,
     config: SubmitConfig
 ): Promise<string> {
-    const { networkUrl, networkId, feePayerKey, fee } = config;
+    const { networkUrl, networkId, feePayerKey } = config;
 
     const Network = Mina.Network({ networkId, mina: networkUrl });
     Mina.setActiveInstance(Network);

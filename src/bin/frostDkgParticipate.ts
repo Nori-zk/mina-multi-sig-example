@@ -2,7 +2,8 @@ import 'dotenv/config';
 import { readFileSync } from 'fs';
 import { Logger, LogPrinter } from 'esm-iso-logger';
 import { runFrostClient, frostGuestConfigPath } from '../frostDockerClient.js';
-import { checkDirectory, getAbsolutePath } from '../utils.js';
+import { existsSync } from 'fs';
+import { getAbsolutePath } from '../utils.js';
 
 const logger = new Logger('FrostDkgParticipate');
 new LogPrinter('FrostDkgParticipate');
@@ -15,13 +16,13 @@ const possibleServerUrl = process.env.FROST_SERVER_URL;
 const issues: string[] = [];
 if (!possibleDescription) issues.push('Missing required first argument: <description> — the human-readable name for the FROST signing group you are joining (e.g. "admin group"). Must match exactly what the coordinator used.');
 if (!possibleThreshold) issues.push('Missing required second argument: <threshold> — the signing threshold for this group (e.g. 2 for a 2-of-3 scheme). Must match what the coordinator used.');
-if (!possibleConfigPath) issues.push('Missing required env: FROST_CONFIG_PATH — the directory where your FROST config TOML is stored');
+if (!possibleConfigPath) issues.push('Missing required env: FROST_CONFIG_PATH — path to your FROST config file (e.g. ~/.config/frost/config)');
 if (!possibleServerUrl) issues.push('Missing required env: FROST_SERVER_URL — the URL of the frostd coordination server');
 
 const possibleAbsoluteConfigPath = possibleConfigPath ? getAbsolutePath(possibleConfigPath) : undefined;
 
-if (possibleAbsoluteConfigPath && !checkDirectory(possibleAbsoluteConfigPath)) {
-    issues.push(`FROST config directory does not exist: ${possibleAbsoluteConfigPath}. Run npm run frost-init first.`);
+if (possibleAbsoluteConfigPath && !existsSync(possibleAbsoluteConfigPath)) {
+    issues.push(`FROST config file does not exist: ${possibleAbsoluteConfigPath}. Run npm run frost-init first.`);
 }
 
 if (issues.length) {
@@ -37,7 +38,7 @@ const hostConfigPath = possibleAbsoluteConfigPath!;
 const serverUrl = possibleServerUrl!;
 
 // Record existing groups before DKG so we can detect the new one after
-const configContent = readFileSync(`${hostConfigPath}/credentials.toml`, 'utf8');
+const configContent = readFileSync(hostConfigPath, 'utf8');
 const existingGroupKeys = new Set<string>();
 const existingGroupMatches = configContent.matchAll(/\[group\.([a-f0-9]+)\]/g);
 for (const match of existingGroupMatches) {
@@ -70,7 +71,7 @@ for (const line of dkgOutput.trim().split('\n')) {
 }
 
 // Grep the new group key from the updated config
-const updatedConfigContent = readFileSync(`${hostConfigPath}/credentials.toml`, 'utf8');
+const updatedConfigContent = readFileSync(hostConfigPath, 'utf8');
 const updatedGroupMatches = updatedConfigContent.matchAll(/\[group\.([a-f0-9]+)\]/g);
 let newGroupKey: string | null = null;
 for (const match of updatedGroupMatches) {

@@ -61,8 +61,8 @@
     "node": ">=18.14.0"
   },
   "dependencies": {
-    "@noble/curves": "^2.0.1",
     "@nori-zk/o1js-zk-utils": "^0.0.19",
-    "esm-iso-logger": "^1.0.2"
+    "esm-iso-logger": "^1.0.2",
+    "libsodium-wrappers-sumo": "^0.8.2"
   }
 }
