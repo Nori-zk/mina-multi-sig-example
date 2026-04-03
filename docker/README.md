@@ -120,14 +120,23 @@ Share `FROST_SERVER_URL` with all committee members — they need it in their `.
 
 ## Updating
 
-To update the services after pulling new images:
+Pull the latest images, then redeploy:
 
 ```sh
+docker compose -f docker-compose.services.swarm.yml pull
 ./swarm/frost-down.sh
 ./swarm/frost-up.sh
 ```
 
-The load balancer rarely needs restarting — only if the caddy configuration or domains change.
+If the load balancer image has also been updated:
+
+```sh
+docker compose -f docker-compose.lb.swarm.yml pull
+./swarm/lb-down.sh
+./swarm/lb-up.sh
+```
+
+The load balancer rarely needs restarting — only if the caddy image, configuration, or domains change.
 
 ## Registry
 
