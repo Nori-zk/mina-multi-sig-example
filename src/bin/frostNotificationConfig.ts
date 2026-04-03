@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { readFileSync, writeFileSync } from 'fs';
+import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { resolve } from 'path';
 import { Logger, LogPrinter } from 'esm-iso-logger';
 import { getAbsolutePath } from '../utils.js';
@@ -11,8 +11,20 @@ new LogPrinter('FrostNotificationConfig');
 
 const possibleConfigPath = process.env.FROST_CONFIG_PATH;
 
-if (!possibleConfigPath) {
-    logger.fatal('Missing required env: FROST_CONFIG_PATH — path to your FROST config file (e.g. ~/.config/frost/config)');
+const issues: string[] = [];
+if (!possibleConfigPath) issues.push('Missing required env: FROST_CONFIG_PATH — path to your FROST config file (e.g. ~/.config/frost/config)');
+
+if (possibleConfigPath) {
+    const absolutePath = getAbsolutePath(possibleConfigPath);
+    if (!existsSync(absolutePath)) {
+        issues.push(`FROST config file does not exist: ${absolutePath}. Run npm run frost-init first.`);
+    }
+}
+
+if (issues.length || !possibleConfigPath) {
+    logger.warn('Could not continue due to the following issues:');
+    issues.forEach((issue) => logger.error(`  - ${issue}`));
+    logger.fatal('Encountered a fatal error and cannot continue.');
     process.exit(1);
 }
 
@@ -21,12 +33,10 @@ const content = readFileSync(configFilePath, 'utf8');
 
 // Extract own communication public key
 const ownPubkeyMatch = content.match(/\[communication_key\][\s\S]*?pubkey\s*=\s*"([^"]+)"/);
-if (!ownPubkeyMatch) {
-    logger.fatal('No communication key found in FROST config. Run frost-init first.');
-    process.exit(1);
-}
+if (!ownPubkeyMatch) issues.push('No communication key found in FROST config. Run frost-init first.');
 
-const pubkeys: string[] = [ownPubkeyMatch[1]];
+const pubkeys: string[] = [];
+if (ownPubkeyMatch) pubkeys.push(ownPubkeyMatch[1]);
 
 // Extract all contact public keys
 const contactPubkeyMatches = content.matchAll(/\[contact\.[^\]]+\][\s\S]*?pubkey\s*=\s*"([^"]+)"/g);
@@ -34,8 +44,12 @@ for (const match of contactPubkeyMatches) {
     pubkeys.push(match[1]);
 }
 
-if (pubkeys.length < 2) {
-    logger.fatal('No contacts found in FROST config. Import contacts with frost-import first.');
+if (pubkeys.length < 2) issues.push('Not enough contacts found in FROST config. Import contacts with npm run frost-import first.');
+
+if (issues.length) {
+    logger.warn('Could not continue due to the following issues:');
+    issues.forEach((issue) => logger.error(`  - ${issue}`));
+    logger.fatal('Encountered a fatal error and cannot continue.');
     process.exit(1);
 }
 

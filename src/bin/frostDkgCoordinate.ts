@@ -47,7 +47,12 @@ for (const match of contactPubkeyMatches) {
 }
 
 if (contactPubkeys.length === 0) {
-    logger.fatal('No contacts found in FROST config. Import contacts with npm run frost-import first.');
+    issues.push('No contacts found in FROST config. Import contacts with npm run frost-import first.');
+}
+if (issues.length) {
+    logger.warn('Could not continue due to the following issues:');
+    issues.forEach((issue) => logger.error(`  - ${issue}`));
+    logger.fatal('Encountered a fatal error and cannot continue.');
     process.exit(1);
 }
 
