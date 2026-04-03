@@ -71,6 +71,25 @@ await getNotifier().notify({
     command: `npm run frost-dkg-participate -- "${description}" ${threshold}`,
 });
 
+// HACK: The frost client's `dkg` subcommand has no `-S` session flag, so if stale sessions
+// exist from previous failed runs it errors with "more than one FROST session active" and
+// there's no way to specify which one. Clean up all sessions before starting.
+// See: mina-frost-client/src/dkg/comms/http.rs:143-144
+logger.log('Cleaning up stale sessions...');
+try {
+    await runFrostClient({
+        frostConfigHostPath: hostConfigPath,
+        args: [
+            'sessions',
+            '-c', frostGuestConfigPath(hostConfigPath),
+            '-s', serverUrl,
+            '--close-all',
+        ],
+    });
+} catch (e) {
+    logger.warn(`Failed to clean up stale sessions: ${(e as Error).message}`);
+}
+
 // Start DKG coordinator session — blocks polling frostd every 2s until all participants contribute
 logger.log(`Starting DKG session for "${description}" with threshold ${threshold}...`);
 logger.log(`Committee members: ${contactPubkeys.length}`);
