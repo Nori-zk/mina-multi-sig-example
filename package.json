@@ -1,6 +1,6 @@
 {
   "name": "o1js-multi-sig-example-contract",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Mock contract with burn and provable update vk",
   "author": "",
   "license": "Apache-2.0",

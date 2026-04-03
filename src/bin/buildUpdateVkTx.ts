@@ -2,13 +2,13 @@ import 'dotenv/config';
 import { Mina, PrivateKey, PublicKey, Bool, type NetworkId } from 'o1js';
 import { execSync } from 'child_process';
 import { basename, join, resolve } from 'path';
-import { mkdirSync, readFileSync, writeFileSync } from 'fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { Logger, LogPrinter } from 'esm-iso-logger';
 import { NoriTokenBridge } from '../NoriTokenBridge.mock.js';
 import { FungibleToken } from '../TokenBase.mock.js';
 import { validateTagForCeremony } from '../preflight.js';
 import { readO1jsVersionInfo } from '../versionInfo.js';
-import { vkSafeToVk } from '../utils.js';
+import { vkSafeToVk, getAbsolutePath } from '../utils.js';
 import { verifyTag, cleanupAllVerifyDirs } from '../verifyTag.js';
 import { getNotifier } from '../notifications/notifier.js';
 import { type UpdateVkOperation } from '../notifications/events.js';
@@ -46,7 +46,13 @@ if (!possibleNetworkUrl) issues.push('Missing required env: MINA_RPC_NETWORK_URL
 if (!possibleNetwork) issues.push('Missing required env: MINA_NETWORK');
 if (!possibleSenderKey58) issues.push('Missing required env: MINA_SENDER_PRIVATE_KEY');
 if (!possibleFrostServerUrl) issues.push('Missing required env: FROST_SERVER_URL');
-if (!possibleFrostConfigPath) issues.push('Missing required env: FROST_CONFIG_PATH');
+if (!possibleFrostConfigPath) issues.push('Missing required env: FROST_CONFIG_PATH — path to your FROST config file (e.g. ~/.config/frost/config)');
+
+const possibleAbsoluteConfigPath = possibleFrostConfigPath ? getAbsolutePath(possibleFrostConfigPath) : undefined;
+
+if (possibleAbsoluteConfigPath && !existsSync(possibleAbsoluteConfigPath)) {
+    issues.push(`FROST config file does not exist: ${possibleAbsoluteConfigPath}. Run npm run frost-init first.`);
+}
 
 let possibleSenderKey: PrivateKey | undefined;
 if (possibleSenderKey58) {
@@ -74,7 +80,7 @@ const networkUrl = possibleNetworkUrl!;
 const network = possibleNetwork!;
 const networkId: NetworkId = network === 'mainnet' ? 'mainnet' : 'testnet';
 const frostServerUrl = possibleFrostServerUrl!;
-const frostConfigPath = possibleFrostConfigPath!;
+const frostConfigPath = possibleAbsoluteConfigPath!;
 
 const operation: UpdateVkOperation = {
     kind: 'updateVk',
