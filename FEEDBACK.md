@@ -57,3 +57,15 @@ The o1js JSON has the correct top-level structure (`feePayer`, `accountUpdates`,
 
 - `mina-tx/src/transactions.rs:88-105` — `from_str_network()` tries ZkApp then Legacy, both fail
 - `mina-tx/src/transactions/zkapp_tx.rs:73-83` — `ZKAppCommand` struct definition
+
+## 7. Noise protocol 65535-byte message limit breaks ZkApp deploy signing
+
+The coordinator's `SendSigningPackage` fails with `SnowError(Input)` for ZkApp deploy transactions that include verification keys. The raw transaction envelope (~46KB) fits within Noise limits, but `frost-core` hex-encodes the message bytes inside `SigningPackage`, roughly doubling the payload size. After JSON serialization in `SendSigningPackageArgs`, the payload hits ~92KB which exceeds the Noise protocol's hard 65535-byte message cap.
+
+- Small transactions (e.g. payments, ~3KB) sign fine
+- Deploy transactions with verification keys (~46KB raw, ~92KB hex-encoded) fail
+- The hex encoding happens inside `frost-core`'s `SigningPackage` serialization (`serdect` hex), not in our code or `mina-tx`
+- `src/cipher.rs` — `encrypt()` calls `snow`'s `write_message()` which enforces the 65535 limit
+- `api::MAX_MSG_SIZE` — the buffer size constant
+
+The fix likely needs message chunking in the Noise transport layer, or avoiding hex encoding of the message bytes in `SigningPackage` serialization.
