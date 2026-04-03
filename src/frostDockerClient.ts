@@ -63,7 +63,7 @@ export function runFrostClient(options: FrostDockerRunOptions): Promise<string> 
             const text = data.toString();
             chunks.push(text);
             for (const line of text.trimEnd().split('\n')) {
-                logger.error(line);
+                logger.info(line);
             }
         });
 
