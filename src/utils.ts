@@ -263,24 +263,75 @@ export const hexToBytes = (hex: string): Uint8Array => Buffer.from(hex, 'hex');
 
 // FROST config key conversion
 
+// Pallas curve parameters
+const PALLAS_P = 28948022309329048855892746252171976963363056481941560715954676764349967630337n;
+
+function modPow(base: bigint, exp: bigint, mod: bigint): bigint {
+    let result = 1n;
+    base = ((base % mod) + mod) % mod;
+    while (exp > 0n) {
+        if (exp & 1n) result = (result * base) % mod;
+        exp >>= 1n;
+        base = (base * base) % mod;
+    }
+    return result;
+}
+
 /**
  * Convert a FROST config hex group key to a Mina base58 public key.
  *
  * The FROST config stores group keys as `[group.<hex>]` where the hex is a 96-byte
  * arkworks compressed Pallas point serialization:
- * - Bytes 0-31: x-coordinate in little-endian
- * - Byte 32: 0x80 if y is odd, 0x00 if y is even
- * - Bytes 33-95: zero padding
+ * - Bytes 0-31: x-coordinate in little-endian, with MSB of byte 31 as the y sign flag
+ * - Bytes 32-95: zero padding (96-byte buffer)
+ *
+ * We decompress by solving y² = x³ + 5 on the Pallas curve and picking the
+ * correct root based on the sign flag, then check the actual y parity for o1js.
  */
 export function frostHexToBase58(hex: string): string {
     const bytes = hexToBytes(hex);
-    // x-coordinate: first 32 bytes, little-endian → reverse to big-endian → bigint
+    // x-coordinate: first 32 bytes in little-endian → big-endian → bigint
     const xBytes = bytes.slice(0, 32);
     const xBigEndian = Uint8Array.from(xBytes).reverse();
     const x = BigInt('0x' + bytesToHex(xBigEndian));
-    // y parity: byte 32, 0x80 = odd
-    const isOdd = (bytes[32] & 0x80) !== 0;
+    // arkworks flag byte (byte 32): 0x80 = "negative" (y > p/2), 0x00 = "positive" (y ≤ p/2)
+    const flagNegative = (bytes[32] & 0x80) !== 0;
+    // Decompress: y² = x³ + 5 (mod p)
+    const x3 = modPow(x, 3n, PALLAS_P);
+    const rhs = (x3 + 5n) % PALLAS_P;
+    const y = tonelliShanks(rhs, PALLAS_P);
+    // Pick the root matching the arkworks flag
+    const yIsLarger = y > (PALLAS_P >> 1n);
+    const finalY = (yIsLarger === flagNegative) ? y : (PALLAS_P - y);
+    // o1js isOdd = whether y is odd as a field element
+    const isOdd = (finalY & 1n) === 1n;
     return PublicKey.from({ x: Field(x), isOdd: Bool(isOdd) }).toBase58();
+}
+
+function tonelliShanks(n: bigint, p: bigint): bigint {
+    if (n === 0n) return 0n;
+    // Factor out powers of 2 from p-1: p-1 = Q * 2^S
+    let Q = p - 1n;
+    let S = 0n;
+    while ((Q & 1n) === 0n) { Q >>= 1n; S++; }
+    // Find a non-residue z
+    let z = 2n;
+    while (modPow(z, (p - 1n) / 2n, p) !== p - 1n) z++;
+    let M = S;
+    let c = modPow(z, Q, p);
+    let t = modPow(n, Q, p);
+    let R = modPow(n, (Q + 1n) / 2n, p);
+    while (true) {
+        if (t === 1n) return R;
+        let i = 1n;
+        let tmp = (t * t) % p;
+        while (tmp !== 1n) { tmp = (tmp * tmp) % p; i++; }
+        const b = modPow(c, modPow(2n, M - i - 1n, p - 1n), p);
+        M = i;
+        c = (b * b) % p;
+        t = (t * c) % p;
+        R = (R * b) % p;
+    }
 }
 
 /**
