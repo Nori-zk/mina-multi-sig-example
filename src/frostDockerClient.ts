@@ -36,17 +36,23 @@ export function runFrostClient(options: FrostDockerRunOptions): string {
         mounts.push(`-v "${auditHostPath}:${frostGuestAuditDir}"`);
     }
 
+    const quotedArgs = args.map(a => `"${a}"`);
+
     const cmd = [
         `docker run --rm --user ${process.getuid()}:${process.getgid()}`,
         ...mounts,
         frostClientImage,
-        ...args,
+        ...quotedArgs,
     ].join(' ');
 
     logger.info(`Running image: ${frostClientImage}`);
-    logger.info(`Command: ${args.join(' ')}`);
+    logger.info(`Command: ${quotedArgs.join(' ')}`);
 
-    return execSync(`${cmd} 2>&1`, { encoding: 'utf8' });
+    try {
+        return execSync(`${cmd} 2>&1`, { encoding: 'utf8' });
+    } catch (e: unknown) {
+        throw new Error((e as { stdout?: string }).stdout?.trim() || (e as Error).message);
+    }
 }
 
 export function mapMinaNetworkToFrost(minaNetwork: string): string {

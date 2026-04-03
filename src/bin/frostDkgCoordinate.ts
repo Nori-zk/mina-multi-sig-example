@@ -90,7 +90,7 @@ try {
         ],
     });
 } catch (e) {
-    logger.error(`${(e as Error).message}`);
+    logger.error((e as Error).message);
     logger.fatal('Encountered a fatal error and cannot continue.');
     process.exit(1);
 }
