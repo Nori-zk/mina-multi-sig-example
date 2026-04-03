@@ -95,9 +95,8 @@ logger.log(`Starting DKG session for "${description}" with threshold ${threshold
 logger.log(`Committee members: ${contactPubkeys.length}`);
 logger.log('Waiting for all participants to join. They need to run the command from the notification.');
 
-let dkgOutput: string;
 try {
-    dkgOutput = await runFrostClient({
+    await runFrostClient({
         frostConfigHostPath: hostConfigPath,
         args: [
             'dkg',
@@ -114,30 +113,44 @@ try {
     process.exit(1);
 }
 
-for (const line of dkgOutput.trim().split('\n')) {
-    if (line.trim()) logger.info(line);
-}
-
-// DKG writes the group to the config after all rounds complete — grep the new group key
+// DKG writes the group to the config after all rounds complete — grep the new group hex key
 const updatedConfigContent = readFileSync(hostConfigPath, 'utf8');
 const updatedGroupMatches = updatedConfigContent.matchAll(/\[group\.([a-f0-9]+)\]/g);
-let newGroupKey: string | null = null;
+let newGroupHexKey: string | null = null;
 for (const match of updatedGroupMatches) {
     if (!existingGroupKeys.has(match[1])) {
-        newGroupKey = match[1];
+        newGroupHexKey = match[1];
         break;
+    }
+}
+
+// Run `groups` to get the Mina base58 address for the new group
+let minaAddress: string | null = null;
+if (newGroupHexKey) {
+    try {
+        const groupsOutput = await runFrostClient({
+            frostConfigHostPath: hostConfigPath,
+            args: ['groups', '-c', frostGuestConfigPath(hostConfigPath)],
+        });
+        const groupPattern = new RegExp(`Public key \\(hex format\\): ${newGroupHexKey}[\\s\\S]*?Public key \\(mina format\\): (B62[a-zA-Z0-9]+)`);
+        const minaKeyMatch = groupsOutput.match(groupPattern);
+        if (minaKeyMatch) {
+            minaAddress = minaKeyMatch[1];
+        }
+    } catch {
+        logger.warn('Could not retrieve Mina address from groups command.');
     }
 }
 
 logger.log('');
 logger.log('=== DKG Complete ===');
-if (newGroupKey) {
-    logger.log(`Group public key (hex): ${newGroupKey}`);
+if (minaAddress) {
+    logger.log(`Group public key: ${minaAddress}`);
     logger.log('');
 
     const isAdmin = description.toLowerCase().includes('admin');
     const envVarName = isAdmin ? 'NORI_MINA_TOKEN_BRIDGE_ADDRESS' : 'NORI_MINA_TOKEN_BASE_ADDRESS';
-    const envVarLine = `${envVarName}=${newGroupKey}`;
+    const envVarLine = `${envVarName}=${minaAddress}`;
 
     logger.log('Add this to your .env:');
     logger.log(`  ${envVarLine}`);
@@ -146,7 +159,7 @@ if (newGroupKey) {
     await getNotifier().notify({
         event: 'DkgComplete',
         description,
-        groupPublicKey: newGroupKey,
+        groupPublicKey: minaAddress,
         envVarLine,
     });
 } else {

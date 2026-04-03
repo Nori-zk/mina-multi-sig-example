@@ -51,9 +51,8 @@ const name = possibleName!;
 const hostConfigPath = possibleAbsoluteConfigPath!;
 
 logger.log('Initializing FROST config...');
-let initOutput: string;
 try {
-    initOutput = await runFrostClient({
+    await runFrostClient({
         frostConfigHostPath: hostConfigPath,
         args: ['init', '-c', frostGuestConfigPath(hostConfigPath)],
     });
@@ -61,10 +60,6 @@ try {
     logger.error(`${(e as Error).message}`);
     logger.fatal('Encountered a fatal error and cannot continue.');
     process.exit(1);
-}
-
-for (const line of initOutput.trim().split('\n')) {
-    if (line.trim()) logger.info(line);
 }
 
 logger.log('Exporting contact string...');
@@ -78,10 +73,6 @@ try {
     logger.error(`${(e as Error).message}`);
     logger.fatal('Encountered a fatal error and cannot continue.');
     process.exit(1);
-}
-
-for (const line of exportOutput.trim().split('\n')) {
-    if (line.trim()) logger.info(line);
 }
 
 const contactStringMatch = exportOutput.match(/minafrost1[a-z0-9]+/);

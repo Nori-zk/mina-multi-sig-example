@@ -31,9 +31,8 @@ const contactString = possibleContactString!;
 const hostConfigPath = possibleAbsoluteConfigPath!;
 
 logger.log('Importing contact...');
-let importOutput: string;
 try {
-    importOutput = await runFrostClient({
+    await runFrostClient({
         frostConfigHostPath: hostConfigPath,
         args: ['import', contactString, '-c', frostGuestConfigPath(hostConfigPath)],
     });
@@ -41,10 +40,6 @@ try {
     logger.error(`${(e as Error).message}`);
     logger.fatal('Encountered a fatal error and cannot continue.');
     process.exit(1);
-}
-
-for (const line of importOutput.trim().split('\n')) {
-    if (line.trim()) logger.info(line);
 }
 
 logger.log('Contact imported successfully.');
