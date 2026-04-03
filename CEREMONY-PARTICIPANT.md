@@ -116,7 +116,9 @@ Before running it, pull and check out the tag. You must be on the same code as t
 ```bash
 git pull
 git checkout <tag>
-npm ci && npm run build
+npm ci
+rm -rf ~/.cache/o1js/
+npm run build
 ```
 
 Then run the command from the notification.
@@ -144,7 +146,9 @@ Before running it, pull and check out the from-tag. You must be on the currently
 ```bash
 git pull
 git checkout <from-tag>
-npm ci && npm run build
+npm ci
+rm -rf ~/.cache/o1js/
+npm run build
 ```
 
 Then run the command from the notification.

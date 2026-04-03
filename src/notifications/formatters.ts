@@ -2,7 +2,11 @@ import { formatO1jsVersionInfo } from '../versionInfo.js';
 import {
     type CeremonyEventPayload,
     type JoinDkgPayload,
+    type DkgCompletePayload,
     type VerifyAndSignPayload,
+    type SigningCompletePayload,
+    type TransactionSubmittedPayload,
+    type TransactionConfirmedPayload,
     type TagInfo,
 } from './events.js';
 
@@ -60,11 +64,63 @@ export function formatVerifyAndSign(payload: VerifyAndSignPayload): string {
     ].join('\n');
 }
 
+export function formatDkgComplete(payload: DkgCompletePayload): string {
+    return [
+        '=== DKG Complete ===',
+        `  Group: ${payload.description}`,
+        `  Group public key: ${payload.groupPublicKey}`,
+        '',
+        'Add this to your .env:',
+        '',
+        `  ${payload.envVarLine}`,
+    ].join('\n');
+}
+
+export function formatSigningComplete(payload: SigningCompletePayload): string {
+    const header = formatOperationHeader(payload.operation);
+    return [
+        '=== Signing Complete ===',
+        header,
+        '',
+        'All signatures collected. The coordinator is now submitting the transaction.',
+    ].join('\n');
+}
+
+export function formatTransactionSubmitted(payload: TransactionSubmittedPayload): string {
+    const header = formatOperationHeader(payload.operation);
+    return [
+        '=== Transaction Submitted ===',
+        header,
+        `  Transaction hash: ${payload.txHash}`,
+        '',
+        'Waiting for inclusion in a block.',
+    ].join('\n');
+}
+
+export function formatTransactionConfirmed(payload: TransactionConfirmedPayload): string {
+    const header = formatOperationHeader(payload.operation);
+    return [
+        '=== Transaction Confirmed ===',
+        header,
+        `  Transaction hash: ${payload.txHash}`,
+        '',
+        'Ceremony complete.',
+    ].join('\n');
+}
+
 export function formatEvent(payload: CeremonyEventPayload): string {
     switch (payload.event) {
         case 'JoinDkg':
             return formatJoinDkg(payload);
+        case 'DkgComplete':
+            return formatDkgComplete(payload);
         case 'VerifyAndSign':
             return formatVerifyAndSign(payload);
+        case 'SigningComplete':
+            return formatSigningComplete(payload);
+        case 'TransactionSubmitted':
+            return formatTransactionSubmitted(payload);
+        case 'TransactionConfirmed':
+            return formatTransactionConfirmed(payload);
     }
 }

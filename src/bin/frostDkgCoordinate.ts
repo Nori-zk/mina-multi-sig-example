@@ -118,12 +118,12 @@ if (newGroupKey) {
     logger.log('Add this to your .env:');
     logger.log(`  ${envVarLine}`);
 
-    // Notify participants with the env var they need to add
+    // Notify participants with the group public key and env var they need to add
     await notifier.notify({
-        event: 'JoinDkg',
-        description: `DKG complete for "${description}". Add to your .env: ${envVarLine}`,
-        threshold: Number(threshold),
-        command: envVarLine,
+        event: 'DkgComplete',
+        description,
+        groupPublicKey: newGroupKey,
+        envVarLine,
     });
 } else {
     logger.warn('Could not detect the new group key from the config. Check the FROST config manually.');

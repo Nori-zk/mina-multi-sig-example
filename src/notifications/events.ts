@@ -40,6 +40,13 @@ export type JoinDkgPayload = {
     command: string;
 };
 
+export type DkgCompletePayload = {
+    event: 'DkgComplete';
+    description: string;
+    groupPublicKey: string;
+    envVarLine: string;
+};
+
 export type VerifyAndSignPayload = {
     event: 'VerifyAndSign';
     operation: Operation;
@@ -49,4 +56,27 @@ export type VerifyAndSignPayload = {
     command: string;
 };
 
-export type CeremonyEventPayload = JoinDkgPayload | VerifyAndSignPayload;
+export type SigningCompletePayload = {
+    event: 'SigningComplete';
+    operation: Operation;
+};
+
+export type TransactionSubmittedPayload = {
+    event: 'TransactionSubmitted';
+    operation: Operation;
+    txHash: string;
+};
+
+export type TransactionConfirmedPayload = {
+    event: 'TransactionConfirmed';
+    operation: Operation;
+    txHash: string;
+};
+
+export type CeremonyEventPayload =
+    | JoinDkgPayload
+    | DkgCompletePayload
+    | VerifyAndSignPayload
+    | SigningCompletePayload
+    | TransactionSubmittedPayload
+    | TransactionConfirmedPayload;

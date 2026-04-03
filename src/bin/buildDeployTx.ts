@@ -236,6 +236,10 @@ try {
     process.exit(1);
 }
 
+// --- Signing complete ---
+
+await notifier.notify({ event: 'SigningComplete', operation });
+
 // --- Re-sign with fee payer and submit ---
 
 logger.log('Re-signing with fee payer and submitting...');
@@ -243,9 +247,13 @@ const signedTxJson = readFileSync(signedPath, 'utf8');
 const signedTx = Mina.Transaction.fromJSON(signedTxJson);
 const reSignedTx = signedTx.sign([senderKey]);
 const pendingTx = await reSignedTx.send();
+
+await notifier.notify({ event: 'TransactionSubmitted', operation, txHash: pendingTx.hash });
+
 logger.log('Waiting for inclusion in a block...');
 await pendingTx.wait();
-logger.log(`Transaction hash: ${pendingTx.hash}`);
+
+await notifier.notify({ event: 'TransactionConfirmed', operation, txHash: pendingTx.hash });
 
 // --- Record history ---
 

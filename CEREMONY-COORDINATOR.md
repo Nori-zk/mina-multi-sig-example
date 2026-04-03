@@ -141,7 +141,14 @@ Before any ceremony, ensure:
 
 The deploy and updateVk scripts read the contract addresses from `NORI_MINA_TOKEN_BRIDGE_ADDRESS` and `NORI_MINA_TOKEN_BASE_ADDRESS` in your `.env` — these were set during DKG (section 1.5).
 
-If you have modified the contracts, run `npm run bake-vk-hashes` first and commit the updated integrity files. The ceremony scripts will hard fail if the compiled verification key doesn't match the stored integrity hash.
+If you have modified the contracts, clear the o1js cache and rebake the integrity hashes:
+
+```bash
+rm -rf ~/.cache/o1js/
+npm run bake-vk-hashes
+```
+
+Commit the updated integrity files. The ceremony scripts will hard fail if the compiled verification key doesn't match the stored integrity hash.
 
 ### Deploy ceremony
 
@@ -150,7 +157,9 @@ Deploys both contracts (`NoriTokenBridge` and `FungibleToken`) to the Mina netwo
 ```bash
 git pull
 git checkout <tag>
-npm ci && npm run build
+npm ci
+rm -rf ~/.cache/o1js/
+npm run build
 npm run build-deploy-tx -- <tag>
 ```
 
@@ -174,7 +183,9 @@ Migrates the on-chain verification key from one contract version to another. The
 ```bash
 git pull
 git checkout <from-tag>
-npm ci && npm run build
+npm ci
+rm -rf ~/.cache/o1js/
+npm run build
 npm run build-update-vk-tx -- <from-tag> <to-tag>
 ```
 
