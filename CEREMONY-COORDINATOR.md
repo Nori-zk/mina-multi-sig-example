@@ -114,7 +114,7 @@ npm run frost-dkg-coordinate -- "admin group" <threshold>
 
 Replace `<threshold>` with the minimum number of signers needed (e.g. `2` for a 2-of-3 scheme).
 
-**What happens:** The script notifies participants via Telegram to join, then starts a DKG session on the frostd server. It will block — polling the server every 2 seconds — until all participants have connected and contributed their key shares. This may take several minutes depending on how quickly participants respond.
+**What happens:** The script notifies participants via Telegram to join, then starts a DKG session on the frostd server. It will block — polling the server every 2 seconds — until all participants have connected and contributed their key shares. This may take several minutes depending on how quickly participants respond. Unlike signing ceremonies, the coordinator automatically participates in DKG — you do not need to run a separate participant command.
 
 **What to do next:** Once DKG completes, the script displays the admin group public key and the exact env var line to add to your `.env`. Add it now:
 
@@ -181,6 +181,13 @@ npm run build-deploy-tx -- <tag>
 3. **Audit files** — writes the unsigned transaction, metadata, and version info to `ceremony/audit/` with a datetime prefix.
 4. **Notification** — sends a message to the Telegram group telling participants to run the verify command. The exact command is included in the notification.
 5. **Admin group signing** — starts a FROST coordinator session for the admin group. The script blocks here, polling frostd every 2 seconds, waiting for participants to verify and sign. This may take 10-30 minutes — participants need to clone the code, build it, inspect it, and join. If the script is killed or loses connection during this step, the ceremony must be restarted from the beginning.
+
+   > **Important:** Unlike DKG, the coordinator does not automatically participate in signing. If you are required by the threshold to be a signer (which you will be if you participated in DKG), you must run the verify command in a **separate terminal** while the build script is blocking:
+   > ```bash
+   > npm run verify-deploy-tx -- <tag>
+   > ```
+   > The verify script handles both signing rounds (admin + token) sequentially, matching the build script. You only need to run it once.
+
 6. **Token group signing** — same process for the token group. Blocks again until all participants sign.
 7. **Submission** — re-signs the transaction with the fee payer key and submits to the Mina network. Waits for inclusion in a block (typically 3-5 minutes).
 8. **History** — records the ceremony in `ceremony/history.jsonl`, commits and pushes.
@@ -209,6 +216,11 @@ npm run build-update-vk-tx -- <from-tag> <to-tag>
 5. **Audit files** — writes unsigned transaction + metadata to `ceremony/audit/`.
 6. **Notification** — sends a Telegram message telling participants to run the verify command.
 7. **Admin group signing** — blocks polling frostd until all participants verify and sign. If the script is killed or loses connection, the ceremony must be restarted from the beginning.
+
+   > **Important:** The coordinator does not automatically participate in signing. If you are a signer, run the verify command in a **separate terminal** while the build script is blocking:
+   > ```bash
+   > npm run verify-update-vk-tx -- <from-tag> <to-tag>
+   > ```
 8. **Submission** — re-signs with fee payer and submits. Waits for block inclusion (typically 3-5 minutes).
 9. **History** — records in `ceremony/history.jsonl`, commits and pushes.
 10. **Cleanup** — removes the cloned verification directories.

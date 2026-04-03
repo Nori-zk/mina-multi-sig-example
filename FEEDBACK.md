@@ -69,3 +69,22 @@ The coordinator's `SendSigningPackage` fails with `SnowError(Input)` for ZkApp d
 - `api::MAX_MSG_SIZE` — the buffer size constant
 
 The 65535 limit is enforced at two layers: Noise (`snow`'s `write_message()`) and the frostd server (`api::MAX_MSG_SIZE`). Since frostd is upstream (`frost-tools`) and also enforces the same limit, the client comms layer needs to chunk messages into multiple frostd sends/receives. Coordinator splits before encrypt/send, participant collects multiple messages and reassembles after receive/decrypt. The Cipher stays single-frame and doesn't need to change.
+
+## 8. Inconsistent coordinator role between DKG and signing
+
+In DKG, the coordinator **automatically participates** — the `dkg` command contributes key material and `-S`/`--participants` lists only the *other* participants. The coordinator ends up in the group as a full participant with their own key share.
+
+In signing, the coordinator **does not participate** — the `coordinator` command is purely an orchestrator. It creates the session, waits for commitments from everyone in `-S`/`--signers`, builds the signing package, and aggregates signatures. It does not contribute its own commitment or signature share. `-S` must list *all* signers, including the coordinator if they are a signer.
+
+This means that when the coordinator is also a group member (which is always the case after DKG), they must run `participant` in parallel with `coordinator` to contribute their own signature share. This is undocumented and surprising given the DKG behaviour.
+
+- `src/cli/dkg.rs` — DKG coordinator automatically participates, `-S` = others only
+- `src/cli/coordinator.rs:200` — `num_signers = signers.len()`, waits for exactly this many commitments
+- `src/coordinator/coordinate_signing.rs:33-40` — collects commitments only from signers in `-S`, does not self-sign
+- `src/cli/args.rs:176-178` — `--signers` on `coordinator` = all signers to wait for
+
+## 9. Participant status message is misleading when coordinator is still waiting for commitments
+
+The participant logs "Waiting for coordinator to send signing package..." while the coordinator is actually still waiting for commitments from other signers. This makes it look like the coordinator is the bottleneck when it's actually another participant that hasn't joined yet.
+
+- `src/participant/comms/http.rs:237` — "Signing package received" only after all commitments are in
