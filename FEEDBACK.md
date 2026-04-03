@@ -46,3 +46,14 @@ If a user passes `https://frost.example.com`, it becomes `https://https://frost.
 - `src/cli/participant.rs:101`
 - `src/cli/dkg.rs:79`
 - `src/cli/session.rs:49`
+
+## 6. Cannot parse o1js ZkApp transaction JSON
+
+The coordinator's `-m` flag reads a transaction JSON file and attempts to parse it via `Transaction::from_str_network()` which tries `serde_json::from_str::<ZKAppCommand>()`. This fails on transactions produced by o1js `txn.toJSON()` with:
+
+> Error: Failed to parse transaction from JSON: Unknown transaction type: Unable to parse transaction. Expected a valid legacy transaction or ZkApp transaction JSON.
+
+The o1js JSON has the correct top-level structure (`feePayer`, `accountUpdates`, `memo`) but deserialization fails on a field-level mismatch between the o1js representation and the Rust `ZKAppCommand` serde model.
+
+- `mina-tx/src/transactions.rs:88-105` — `from_str_network()` tries ZkApp then Legacy, both fail
+- `mina-tx/src/transactions/zkapp_tx.rs:73-83` — `ZKAppCommand` struct definition
