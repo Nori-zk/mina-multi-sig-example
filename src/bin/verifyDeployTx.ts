@@ -122,24 +122,46 @@ try {
 }
 
 // --- Join FROST signing: token group ---
+// Race condition: the coordinator must finish the first signing session and create the
+// second before participants can join. If the participant completes the first session
+// faster than the coordinator can start the second, frostd returns SessionNotFound.
+// Retry with a delay to give the coordinator time to create the session.
 
 logger.log('Joining token group FROST signing session...');
 logger.log('This will block until the coordinator starts the session and signing completes.');
-try {
-    await runFrostClient({
-        frostConfigHostPath: frostConfigPath,
-        args: [
-            'participant',
-            '-c', frostGuestConfigPath(frostConfigPath),
-            '-s', frostServerUrl,
-            '-g', tokenHexGroupKey!,
-            '-y',
-        ],
-    });
-} catch (e) {
-    logger.error(`${(e as Error).message}`);
-    logger.fatal('Encountered a fatal error and cannot continue.');
-    process.exit(1);
+
+const maxAttempts = 5;
+const retryDelaySecs = 10;
+
+for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+        await runFrostClient({
+            frostConfigHostPath: frostConfigPath,
+            args: [
+                'participant',
+                '-c', frostGuestConfigPath(frostConfigPath),
+                '-s', frostServerUrl,
+                '-g', tokenHexGroupKey!,
+                '-y',
+            ],
+        });
+        break;
+    } catch (e) {
+        const msg = (e as Error).message;
+        if (msg.includes('SessionNotFound') && attempt < maxAttempts) {
+            logger.warn(`Token group session not available yet — waiting for coordinator to start it (${attempt}/${maxAttempts})...`);
+            await new Promise((r) => setTimeout(r, retryDelaySecs * 1000));
+        } else if (msg.includes('SessionNotFound')) {
+            logger.error(`Token group session was not created after ${maxAttempts} attempts. The first signing session likely failed on the coordinator side — verify the ceremony is still running.`);
+            logger.fatal('Encountered a fatal error and cannot continue.');
+            process.exit(1);
+        } else {
+            logger.error(`Failed to participate in the token group signing session. This may be a connection issue with the FROST server or a problem with your FROST configuration.`);
+            logger.error(msg);
+            logger.fatal('Encountered a fatal error and cannot continue.');
+            process.exit(1);
+        }
+    }
 }
 
 // --- Cleanup ---
