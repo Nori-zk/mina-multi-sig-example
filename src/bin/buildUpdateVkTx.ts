@@ -267,7 +267,15 @@ await getNotifier().notify({ event: 'SigningComplete', operation });
 
 logger.log('Re-signing with fee payer and submitting...');
 const signedTxJson = readFileSync(signedPath, 'utf8');
-const signedTx = Mina.Transaction.fromJSON(signedTxJson);
+// The FROST client outputs a TransactionSignature wrapper {publicKey, signature, payload}.
+// o1js expects the raw transaction which lives at payload.kind.transaction.
+const signedTxParsed = JSON.parse(signedTxJson);
+const rawTx = signedTxParsed.payload?.kind?.transaction;
+if (!rawTx) {
+    logger.fatal('Could not extract the raw transaction from the signed output. Expected payload.kind.transaction in the FROST-signed JSON.');
+    process.exit(1);
+}
+const signedTx = Mina.Transaction.fromJSON(JSON.stringify(rawTx));
 const reSignedTx = signedTx.sign([senderKey]);
 const pendingTx = await reSignedTx.send();
 
