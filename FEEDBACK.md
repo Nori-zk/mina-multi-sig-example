@@ -1,4 +1,4 @@
-# mina-frost-client feedback
+# mina-frost-client feedback (line numebrs written against main branch)
 
 ## 1. `init` has no guards — can silently wipe key material
 
@@ -97,4 +97,36 @@ The participant in `mina-frost-client/src/participant/comms/http.rs:171-183` can
 
 Since the coordinator never outputs the session ID and the participant blindly picks the first session from a pubkey lookup, there is no mechanism to ensure the participant joins the intended session. Multiple sessions for the same pubkeys can exist simultaneously — from failed ceremonies that weren't cleaned up, from concurrent runs, or during the gap between closing one session and creating the next in a multi-group ceremony. A participant that joins the wrong session establishes a Noise channel against a different coordinator's handshake state, and all subsequent encrypted communication fails with `SnowError(Decrypt)`.
 
+In practice we have not been able to achieve reliable multi-group signing ceremonies despite extensive testing with aggressive session cleanup, polling for session closure confirmation, and delays between sessions. The client's blind session discovery means that any failed ceremony leaves state that can cause subsequent ceremonies to fail with `SnowError(Decrypt)`. Multi-group ceremonies that require sequential sessions are especially fragile — a failed first session poisons the second. Without explicit session ID passing from coordinator to participant, the client has no way to distinguish a valid session from a stale or unrelated one on the same server.
+
 The coordinator should always output the session ID to stdout so orchestration tooling can capture it and pass it to participants via `--session_id`.
+
+Worse, this blind discovery is also a DoS vector if any FROST config file is compromised or if participant pubkeys are discovered by any other out-of-band communication mechanism. Each config file contains the communication pubkeys of all group members and the frostd server URL. An attacker with this information can:
+
+1. Authenticate with frostd using a freshly generated keypair — no pre-registration or allowlist required (`frostd/src/functions.rs:56-84`)
+2. Create a session listing some subset of legitimate participants' pubkeys (`frostd/src/functions.rs:101-142`) — frostd does not validate that the caller has any relationship to the pubkeys listed
+3. The legitimate coordinator cannot close the attacker's session because `close_session` only allows the session's coordinator to close it (`frostd/src/functions.rs:307-309`) [it will timeout after 24 hours but they can add as many as they want]
+
+When the legitimate ceremony starts, the coordinator clears its own stale sessions via `--close-all`, but the attacker's session survives. The participant calls `list_sessions`, which returns all sessions where their pubkey appears — both the legitimate session and the attacker's. The participant either errors with "user has more than one FROST session active" (`http.rs:176-177`) or, if the attacker's session is the only one visible at query time, joins it and fails with `SnowError(Decrypt)` due to mismatched Noise state.
+
+The attacker cannot forge signatures or read encrypted messages. But they can permanently block all signing ceremonies for the group by maintaining a single session on the server. The attack requires no private key material — only a subset of the legitimate committee's pubkeys and the frostd URL.
+
+## 11. Coordinator without `-S` is broken — hangs forever or rejects all participants
+
+When the coordinator is run without `-S` (no signers specified), the following occurs:
+
+1. `parse_signers` in `src/cli/coordinator.rs:154-163` iterates an empty list, returning an empty `HashMap<PublicKey, Identifier>`
+2. `setup_coordinator_config` in `src/cli/coordinator.rs:200` sets `num_signers = signers.len() = 0`
+3. `HTTPComms::new` in `src/coordinator/comms/http.rs:47-50` creates `CoordinatorSessionState::new(1, 0, empty_map)` — state is `WaitingForCommitments` with `num_signers=0`, empty `commitments`, empty `pubkeys`
+4. `create_new_session` in `src/coordinator/comms/http.rs:95-98` sends `pubkeys: self.config.signers.keys().cloned().collect()` — an empty vec. frostd creates a session with no participants, only the coordinator's pubkey in `sessions_by_pubkey`
+5. `self.config.signers.is_empty()` is true (`src/coordinator/comms/http.rs:101-106`), so the session ID is printed to stderr — this is the "open invitation" mode
+6. `Cipher::new` in `src/coordinator/comms/http.rs:115-118` is created with an empty peers list
+7. The polling loop at `src/coordinator/comms/http.rs:122-139` calls `receive` on frostd. No participants are in the frostd session (the participant list was empty), so no one can send messages to the Coordinator queue. `r.msgs` is always empty. `recv` is never called. The state never transitions from `WaitingForCommitments`. `has_commitments()` at `src/session.rs:142-146` checks for `WaitingForSignatureShares` which is never reached. The coordinator hangs forever
+
+If a participant manages to join manually via `--session_id` and sends a commitment, the coordinator receives it and calls `handle_commitments` at `src/session.rs:103-138`. Line 117 calls `pubkeys.get(&pubkey)` but `pubkeys` is the empty map from step 3. It returns `Err("unknown participant")` and the coordinator exits with an error.
+
+The transition at `src/session.rs:126` (`commitments_map.len() == args.num_signers`) would evaluate to `0 == 0` and advance the state — but this line is only reached inside `handle_commitments`, which is only called when a commitment is successfully processed. Since every commitment is rejected at line 117, this transition never fires.
+
+The without-`-S` mode prints the session ID as if it expects participants to join manually, but the coordinator has no mechanism to accept them.
+
+Ideally `-S` should not be required at all. The group's participant pubkeys are already in the FROST config under `[group.*.participant.*]` and the threshold is embedded in `public_key_package` (`min_signers`). The coordinator should use these directly — creating a session open to all group members and accepting commitments from whichever members happen to be available, proceeding once the threshold is met. Requiring the caller to manually list signers via `-S` somewhat defeats the point of threshold signatures, where any `t` of `n` members should be able to sign without the coordinator needing to predict or knowing before hand who will be online.
