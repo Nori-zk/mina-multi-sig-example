@@ -28,6 +28,7 @@
     "frost-import": "npm run build && node build/bin/frostImport.js",
     "frost-notification-config": "npm run build && node build/bin/frostNotificationConfig.js",
     "frost-sessions": "npm run build && node build/bin/frostSessions.js",
+    "frost-clean-sessions": "npm run build && node build/bin/frostCleanSessions.js",
     "frost-dkg-coordinate": "npm run build && node build/bin/frostDkgCoordinate.js",
     "frost-dkg-participate": "npm run build && node build/bin/frostDkgParticipate.js",
     "build-deploy-tx": "npm run build && node --max-old-space-size=8192 --max-semi-space-size=128 --no-liftoff --no-wasm-tier-up --experimental-vm-modules --experimental-wasm-modules build/bin/buildDeployTx.js",

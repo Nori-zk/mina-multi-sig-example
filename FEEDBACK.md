@@ -88,3 +88,13 @@ This means that when the coordinator is also a group member (which is always the
 The participant logs "Waiting for coordinator to send signing package..." while the coordinator is actually still waiting for commitments from other signers. This makes it look like the coordinator is the bottleneck when it's actually another participant that hasn't joined yet.
 
 - `src/participant/comms/http.rs:237` — "Signing package received" only after all commitments are in
+
+## 10. Participant session discovery is unsafe — coordinator does not output session ID
+
+The coordinator in `mina-frost-client/src/coordinator/comms/http.rs:92-99` creates a session on frostd and receives a session UUID back. It only prints this UUID to stderr when `self.config.signers.is_empty()` (`http.rs:101-106`). When signers are specified via `-S` (the normal usage), the session ID is never output.
+
+The participant in `mina-frost-client/src/participant/comms/http.rs:171-183` can accept a session ID via `self.session_id` (set by the `--session_id` CLI flag in `src/cli/args.rs`). When no session ID is provided, it falls back to calling `list_sessions` on frostd, which returns all session UUIDs where the participant's pubkey appears. If exactly one exists, it joins it. If more than one exists, it errors. It takes `r.session_ids[0]` without any validation of which session it belongs to.
+
+Since the coordinator never outputs the session ID and the participant blindly picks the first session from a pubkey lookup, there is no mechanism to ensure the participant joins the intended session. Multiple sessions for the same pubkeys can exist simultaneously — from failed ceremonies that weren't cleaned up, from concurrent runs, or during the gap between closing one session and creating the next in a multi-group ceremony. A participant that joins the wrong session establishes a Noise channel against a different coordinator's handshake state, and all subsequent encrypted communication fails with `SnowError(Decrypt)`.
+
+The coordinator should always output the session ID to stdout so orchestration tooling can capture it and pass it to participants via `--session_id`.

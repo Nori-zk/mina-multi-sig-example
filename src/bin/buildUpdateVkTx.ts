@@ -12,7 +12,7 @@ import { vkSafeToVk, getAbsolutePath, resolveHexGroupKey } from '../utils.js';
 import { verifyTag, cleanupAllVerifyDirs } from '../verifyTag.js';
 import { getNotifier } from '../notifications/notifier.js';
 import { type UpdateVkOperation } from '../notifications/events.js';
-import { runFrostClient, mapMinaNetworkToFrost, frostGuestConfigPath, frostGuestAuditDir } from '../frostDockerClient.js';
+import { runFrostClient, mapMinaNetworkToFrost, frostGuestConfigPath, frostGuestAuditDir, ensureCleanSessions, closeAllSessions } from '../frostDockerClient.js';
 import { appendHistoryEntry, getHistoryFilePath } from '../ceremonyHistory.js';
 import { rootDir } from '../path.js';
 
@@ -219,22 +219,7 @@ const signedFilename = `${datetime}-updateVk-${fromTag}-to-${toTag}-signed.json`
 const signedPath = resolve(auditDir, signedFilename);
 const frostNetwork = mapMinaNetworkToFrost(network);
 
-// HACK: Clean up stale sessions from previous failed runs.
-// See: mina-frost-client/src/dkg/comms/http.rs:143-144
-logger.log('Cleaning up stale sessions...');
-try {
-    await runFrostClient({
-        frostConfigHostPath: frostConfigPath,
-        args: [
-            'sessions',
-            '-c', frostGuestConfigPath(frostConfigPath),
-            '-s', frostServerUrl,
-            '--close-all',
-        ],
-    });
-} catch (e) {
-    logger.warn(`Failed to clean up stale sessions: ${(e as Error).message}`);
-}
+await ensureCleanSessions(frostConfigPath, frostServerUrl, logger);
 
 logger.log('Starting FROST coordinator session for admin group...');
 logger.log('Waiting for all participants to verify and join. This will block until signing completes.');
@@ -255,6 +240,7 @@ try {
     });
 } catch (e) {
     logger.error(`${(e as Error).message}`);
+    await closeAllSessions(frostConfigPath, frostServerUrl, logger);
     logger.fatal('Encountered a fatal error and cannot continue.');
     process.exit(1);
 }
