@@ -1,4 +1,4 @@
-# mina-frost-client feedback (line numebrs written against main branch)
+# mina-frost-client feedback (line numbers written against main branch)
 
 ## 1. `init` has no guards — can silently wipe key material
 
@@ -58,6 +58,8 @@ The o1js JSON has the correct top-level structure (`feePayer`, `accountUpdates`,
 - `mina-tx/src/transactions.rs:88-105` — `from_str_network()` tries ZkApp then Legacy, both fail
 - `mina-tx/src/transactions/zkapp_tx.rs:73-83` — `ZKAppCommand` struct definition
 
+[Working fix - ZkappUri/TokenSymbol string serde + length limit + error surfacing](https://github.com/Raspberry-Devs/mina-multi-sig/pull/190)
+
 ## 7. Noise protocol 65535-byte message limit breaks ZkApp deploy signing
 
 The coordinator's `SendSigningPackage` fails with `SnowError(Input)` for ZkApp deploy transactions that include verification keys. The raw transaction envelope (~46KB) fits within Noise limits, but `frost-core` hex-encodes the message bytes inside `SigningPackage`, roughly doubling the payload size. After JSON serialization in `SendSigningPackageArgs`, the payload hits ~92KB which exceeds the Noise protocol's hard 65535-byte message cap.
@@ -69,6 +71,14 @@ The coordinator's `SendSigningPackage` fails with `SnowError(Input)` for ZkApp d
 - `api::MAX_MSG_SIZE` — the buffer size constant
 
 The 65535 limit is enforced at two layers: Noise (`snow`'s `write_message()`) and the frostd server (`api::MAX_MSG_SIZE`). Since frostd is upstream (`frost-tools`) and also enforces the same limit, the client comms layer needs to chunk messages into multiple frostd sends/receives. Coordinator splits before encrypt/send, participant collects multiple messages and reassembles after receive/decrypt. The Cipher stays single-frame and doesn't need to change.
+
+[Possible fix - chunking frostd messages](https://github.com/Nori-zk/mina-multi-sig/tree/fix/chunked-frostd-messaging) - (tentative about this one as it may relate to the snow error)
+
+Other strategies for making it work without multiple messages are:
+
+- Making the serialization more efficient (lose the hex) to keep large transactions under the constraint — `src/coordinator/comms/http.rs:172-174` JSON-encodes `SendSigningPackageArgs` via `serde_json::to_vec` before handing it to `cipher.encrypt`. The hex doubling comes from `frost-core`'s `SigningPackage.message` field being tagged with `serdect::slice::serialize_hex_lower_or_bin`, which only emits hex for human-readable serde formats. Swapping the wire codec for a binary one would skip the hex path entirely with no upstream changes.
+- Compression
+
 
 ## 8. Inconsistent coordinator role between DKG and signing
 
@@ -129,7 +139,15 @@ The transition at `src/session.rs:126` (`commitments_map.len() == args.num_signe
 
 The without-`-S` mode prints the session ID as if it expects participants to join manually, but the coordinator has no mechanism to accept them.
 
-Ideally `-S` should not be required at all. The group's participant pubkeys are already in the FROST config under `[group.*.participant.*]` and the threshold is embedded in `public_key_package` (`min_signers`). The coordinator should use these directly — creating a session open to all group members and accepting commitments from whichever members happen to be available, proceeding once the threshold is met. Requiring the caller to manually list signers via `-S` somewhat defeats the point of threshold signatures, where any `t` of `n` members should be able to sign without the coordinator needing to predict or knowing before hand who will be online.
+Ideally `-S` should not be required at all. The group's participant pubkeys are already in the FROST config under `[group.*.participant.*]` and the threshold is embedded in `public_key_package` (`min_signers`). The coordinator should use these directly — creating a session open to all group members and accepting commitments from whichever members happen to be available, proceeding once the threshold is met. Requiring the caller to manually list signers via `-S` somewhat defeats the point of threshold signatures, where any `t` of `n` members should be able to sign without the coordinator needing to predict or know beforehand who will be online.
+
+## 12. `from_str_network` cannot accept a FROST-signed transaction as input
+
+The coordinator's `-m` flag only accepts raw unsigned ZkApp or Legacy transaction JSON. The output of a FROST signing session is a `TransactionSignature` wrapper, which can't be fed back in as input to a subsequent signing session.
+
+- `mina-tx/src/transactions.rs:88-105` — `from_str_network()` only tries `ZKAppCommand` then `LegacyTransaction`
+
+[Working fix - accept TransactionSignature as input](https://github.com/Raspberry-Devs/mina-multi-sig/pull/191) (depends on [#190](https://github.com/Raspberry-Devs/mina-multi-sig/pull/190))
 
 ## 13. Possible causes of intermittent `SnowError(Decrypt)` — investigation leads
 
@@ -146,3 +164,18 @@ We observe intermittent `SnowError(Decrypt)` failures during dual-session signin
 5. **Concurrent access tokens during participant retry** — When the token group session isn't available yet, the participant retry loop spawns up to 5 separate processes in sequence, each logging into frostd. If a previous retry's process hasn't fully exited when the next one starts, two processes may be authenticated as the same pubkey simultaneously. Messages sent by one could be received by frostd while the other's session context is active.
 
 6. **The coordinator calls `close_session` then `create_new_session` between the two signing groups** — This is two separate HTTP calls. Between them, participants that finished the first session may call `list_sessions` and see zero sessions. They retry, but during the retry window the coordinator creates the new session. The participant's next retry finds it and joins. However, the coordinator may not have sent all chunks yet, and the participant's `receive` drains whatever is in the queue at that moment — potentially mixing messages from different stages of the protocol.
+
+7. **Caddy reverse proxy in front of frostd** — Not considered likely, but worth ruling out: try a frostd deployment without Caddy in front in case the proxy is corrupting binary data on the wire. More generally, variations of frostd service deployments may be worth trying to isolate whether the issue is in frostd itself or the surrounding infrastructure.
+
+8. **frostd itself may not be that stable under concurrent use** — During recent testing with two testers hitting the same server, listing sessions returned `ServerError(SessionNotFound)`, which makes no sense for a read-only listing operation. `get_session_info` in `frostd/src/functions.rs:162-187` reads `sessions_by_pubkey` and `sessions` under independent `RwLock`s, so if another caller closes a session in the gap between the two reads, the listing aborts with `SessionNotFound` instead of just skipping the now-gone session. Same separate-locks pattern as point 1.
+
+## Short list of what to work on next
+
+- (Nori side) Definition-of-done script: a shareable, repeatable, demonstrable script that runs the multi-group ceremony for our use case in a loop. When it can run in a loop reliably, the tooling is good; while it only works by chance, it isn't. Intended as the surface for exposing and closing out the rough edges in this document. WIP see the shared ZIP file.
+- The point 6 fix has already landed via [PR #192](https://github.com/Raspberry-Devs/mina-multi-sig/pull/192), the rebased and upstream-synced version of [PR #190](https://github.com/Raspberry-Devs/mina-multi-sig/pull/190).
+- Merge [PR #191](https://github.com/Raspberry-Devs/mina-multi-sig/pull/191) — accepts `TransactionSignature` as input to `from_str_network`, addresses point 12.
+- Investigate the intermittent `SnowError(Decrypt)`. [Section 13](#13-possible-causes-of-intermittent-snowerrordecrypt--investigation-leads) lists eight leads worth working through. This needs a root cause, not a workaround.
+- Only after the snow investigation, merge the chunking fix from point 7 ([fix/chunked-frostd-messaging](https://github.com/Nori-zk/mina-multi-sig/tree/fix/chunked-frostd-messaging)). The chunking layer may itself be contributing to the snow error, and landing it blind risks baking the issue into the codebase.
+- Investigate frostd upstream instability under concurrent use — see [section 13 point 8](#13-possible-causes-of-intermittent-snowerrordecrypt--investigation-leads) for the `ServerError(SessionNotFound)` from a read-only listing call when two testers hit the same server.
+- Address [point 10](#10-participant-session-discovery-is-unsafe--coordinator-does-not-output-session-id) (unsafe session discovery / DoS vector). Should reduce the session race surface area that section 13 is trying to characterise.
+- Address [point 11](#11-coordinator-without--s-is-broken--hangs-forever-or-rejects-all-participants) (coordinator without `-S` hangs or rejects all participants). Should also reduce the session race surface area.
